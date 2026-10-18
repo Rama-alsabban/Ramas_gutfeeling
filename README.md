@@ -48,6 +48,12 @@ The data lives in the `FOODS` array in `index.html`. Edit it to add foods or cha
 
 ---
 
+## Also in this repo: RESIDUE
+
+[`residue/`](residue/) is a separate piece. You tell an AI a secret and press DELETE, and its influence keeps leaking into the replies. It's a simulation of the difference between deleting visible information and removing learned influence. See [`residue/README.md`](residue/README.md).
+
+---
+
 ## Files
 
 ```
