@@ -1,0 +1,728 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>[hidden]{display:none!important}body{margin:0}</style>
+<title>Palimpsest</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="A small language model lives on this page. Teach it a secret, delete the secret, and try to make it forget.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=JetBrains+Mono:wght@400;600&family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..700&display=swap" rel="stylesheet">
+<style>
+/* Layout: a writing desk. The conversation page on the left, the model's own page of words on the right, the forgetting tools laid out underneath. */
+:root{
+  --paper:#e3e5df; --sheet:#f1f2ee; --ink:#1c1a24; --ink-2:#5c5966; --rule:#c6c8c0;
+  --trace:#b0136f; --trace-soft:#b0136f2e; --scrape:#a7a294; --focus:#1c1a24;
+  --f-display:'IM Fell English','Iowan Old Style',Georgia,serif;
+  --f-body:'Newsreader',Georgia,'Times New Roman',serif;
+  --f-mono:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#111217; --sheet:#191a21; --ink:#e7e4dc; --ink-2:#9b98a6; --rule:#2d2e37;
+    --trace:#ff5cb6; --trace-soft:#ff5cb633; --scrape:#4a4855; --focus:#e7e4dc; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#111217; --sheet:#191a21; --ink:#e7e4dc; --ink-2:#9b98a6; --rule:#2d2e37;
+  --trace:#ff5cb6; --trace-soft:#ff5cb633; --scrape:#4a4855; --focus:#e7e4dc; color-scheme:dark;
+}
+
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:17px;line-height:1.55;-webkit-font-smoothing:antialiased}
+button,input,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.wrap{max-width:1180px;margin:0 auto;padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px));padding-block:28px 40px;display:flex;flex-direction:column;gap:22px}
+.mono{font-family:var(--f-mono)}
+.label{font-family:var(--f-mono);font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-2)}
+
+/* ---------- header ---------- */
+header{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px 32px;align-items:end}
+h1{margin:0;font-family:var(--f-display);font-weight:400;font-size:clamp(2.6rem,7vw,4.4rem);line-height:.95;letter-spacing:-.01em}
+h1 .over{color:var(--trace);font-style:italic}
+.lede{margin:0;max-width:60ch;color:var(--ink-2);text-wrap:pretty}
+.lede b{color:var(--ink);font-weight:500}
+@media (max-width:720px){header{grid-template-columns:1fr}}
+
+/* ---------- stage rail ---------- */
+.rail{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:6px 18px;border-block:1px solid var(--rule);padding-block:10px}
+.rail li{font-family:var(--f-mono);font-size:.74rem;color:var(--ink-2);display:flex;gap:6px;align-items:center}
+.rail li b{display:inline-grid;place-items:center;width:20px;height:20px;border:1px solid var(--rule);border-radius:50%;font-weight:400;font-size:.66rem}
+.rail li.done b{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.rail li[aria-current="step"]{color:var(--ink)}
+.rail li[aria-current="step"] b{border-color:var(--trace);color:var(--trace)}
+
+/* ---------- desk ---------- */
+.desk{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:22px;align-items:start}
+@media (max-width:900px){.desk{grid-template-columns:minmax(0,1fr)}}
+.sheet{background:var(--sheet);border:1px solid var(--rule);border-radius:4px;padding:20px;min-width:0;display:flex;flex-direction:column;gap:14px}
+.sheet h2{margin:0;font-family:var(--f-display);font-weight:400;font-size:1.6rem;line-height:1.1}
+.sheet .sub{margin:-8px 0 0;color:var(--ink-2);font-size:.92rem;max-width:60ch}
+
+/* conversation */
+#log{display:flex;flex-direction:column;gap:14px;max-height:430px;overflow-y:auto;padding-right:4px}
+.entry{display:flex;flex-direction:column;gap:2px;animation:rise .4s ease-out}
+.entry .line{font-size:1.12rem;line-height:1.5}
+.entry .prompt{color:var(--ink-2)}
+.note{font-family:var(--f-mono);font-size:.72rem;color:var(--ink-2);border-left:2px solid var(--rule);padding-left:8px}
+.note b{color:var(--ink);font-weight:600}
+@keyframes rise{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+.w.traced{
+  color:color-mix(in oklab, var(--trace) calc(var(--t) * 100%), var(--ink));
+  font-weight:calc(400 + var(--t) * 260);
+  letter-spacing:calc(var(--t) * .05em);
+  text-decoration:underline wavy color-mix(in oklab, var(--trace) calc(var(--t) * 70%), transparent);
+  text-decoration-thickness:1px;text-underline-offset:4px;
+  text-shadow:0 0 calc(var(--t) * 9px) var(--trace-soft);
+}
+.w.traced.strong{font-style:italic}
+.gap{color:var(--scrape);letter-spacing:-.1em;font-family:var(--f-mono);font-size:.9em}
+
+.secret-block{border:1px solid var(--trace);border-radius:4px;padding:12px 14px;background:var(--trace-soft);display:flex;flex-direction:column;gap:8px}
+.secret-block .line{font-family:var(--f-display);font-size:1.3rem;line-height:1.35;overflow-wrap:anywhere}
+.secret-block .line span{display:inline-block;transition:opacity .25s, filter .25s, transform .25s}
+.secret-block .line span.off{opacity:0;filter:blur(3px);transform:translateY(3px)}
+.scraped{height:44px;border-radius:4px;background:repeating-linear-gradient(-12deg, var(--rule) 0 2px, transparent 2px 7px);opacity:.7}
+
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.row > input,.row > textarea{flex:1 1 220px;min-width:0}
+input[type=text],textarea{background:var(--paper);border:1px solid var(--rule);border-radius:4px;padding:10px 12px;line-height:1.4}
+textarea{resize:vertical;min-height:70px;font-family:var(--f-display);font-size:1.1rem}
+input[type=text]:focus,textarea:focus{border-color:var(--ink);outline:none}
+.btn{border:1px solid var(--ink);background:var(--ink);color:var(--sheet);border-radius:4px;padding:10px 16px;cursor:pointer;font-family:var(--f-mono);font-size:.8rem;letter-spacing:.04em}
+.btn.ghost{background:transparent;color:var(--ink)}
+.btn.trace{background:var(--trace);border-color:var(--trace);color:var(--sheet)}
+.btn:disabled{opacity:.35;cursor:not-allowed}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--rule);background:transparent;border-radius:999px;padding:4px 11px;font-size:.9rem;cursor:pointer;font-style:italic}
+.chip:hover{border-color:var(--ink)}
+.confess{border-top:1px solid var(--rule);padding-top:14px;display:flex;flex-direction:column;gap:8px}
+.confess p{margin:0;font-size:.88rem;color:var(--ink-2)}
+
+/* model page */
+.lexwrap{position:relative;background:var(--paper);border:1px solid var(--rule);border-radius:4px;padding:14px 14px 18px}
+#lexicon{position:relative;z-index:1;line-height:1.25;text-align:justify;hyphens:none;font-size:11.5px}
+#lexicon span{display:inline-block;margin:0 .18em;color:var(--ink-2);transition:color .6s, opacity .6s}
+#lexicon span.traced{color:color-mix(in oklab, var(--trace) calc(var(--t) * 100%), var(--ink));font-weight:600;font-style:italic}
+#lexicon span.scraped{opacity:.22;text-decoration:line-through;text-decoration-color:var(--scrape)}
+#lexicon span.fresh{animation:ink 1.2s ease-out}
+#lexicon.rewriting span{opacity:0}
+@keyframes ink{from{color:var(--trace);transform:scale(1.25)}}
+#arcs{position:absolute;inset:0;width:100%;height:100%;z-index:2;pointer-events:none;overflow:visible}
+#arcs path{fill:none;stroke-linecap:round}
+#arcs .walk{stroke-dasharray:600;stroke-dashoffset:600;animation:walk 1.6s ease-out forwards}
+@keyframes walk{to{stroke-dashoffset:0}}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.78rem;color:var(--ink-2)}
+.legend i{display:inline-block;width:18px;height:2px;background:var(--trace);vertical-align:middle;margin-right:6px}
+
+.meters{display:grid;gap:12px}
+.meter .top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.meter .top b{font-family:var(--f-mono);font-variant-numeric:tabular-nums;font-size:1.05rem}
+.meter .desc{font-size:.8rem;color:var(--ink-2)}
+.bar{height:8px;background:var(--paper);border:1px solid var(--rule);border-radius:4px;overflow:hidden;margin-top:4px}
+.bar span{display:block;height:100%;background:var(--ink);transition:width .7s cubic-bezier(.2,.8,.2,1)}
+.meter.res .bar span{background:var(--trace)}
+.meter.res .top b{color:var(--trace)}
+.vocab{font-family:var(--f-mono);font-size:.72rem;color:var(--ink-2)}
+
+/* forgetting */
+.forget{background:var(--sheet);border:1px solid var(--rule);border-radius:4px;padding:20px;display:flex;flex-direction:column;gap:16px}
+.forget h2{margin:0;font-family:var(--f-display);font-weight:400;font-size:1.6rem}
+.forget .sub{margin:-10px 0 0;color:var(--ink-2);font-size:.92rem;max-width:70ch}
+.forget.locked .tools,.forget.locked .frontier{opacity:.4;pointer-events:none}
+.tools{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+@media (max-width:900px){.tools{grid-template-columns:minmax(0,1fr)}}
+.tool{border-top:2px solid var(--ink);padding-top:10px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.tool h3{margin:0;font-family:var(--f-display);font-weight:400;font-size:1.25rem}
+.tool p{margin:0;font-size:.9rem;color:var(--ink-2)}
+.tool .why{font-family:var(--f-mono);font-size:.72rem;color:var(--trace)}
+input[type=range]{width:100%;accent-color:var(--trace)}
+.readout{font-family:var(--f-mono);font-size:.78rem;font-variant-numeric:tabular-nums}
+.frontier{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:20px;align-items:center;border-top:1px solid var(--rule);padding-top:16px}
+@media (max-width:760px){.frontier{grid-template-columns:minmax(0,1fr)}}
+.frontier svg{width:100%;height:auto;display:block}
+.frontier h3{margin:0 0 6px;font-family:var(--f-display);font-weight:400;font-size:1.25rem}
+.frontier p{margin:0 0 8px;font-size:.9rem;color:var(--ink-2)}
+.ax{font-family:var(--f-mono);font-size:10px;fill:var(--ink-2)}
+.grid{stroke:var(--rule);stroke-width:1}
+.curve{fill:none;stroke:var(--ink);stroke-width:1.5}
+.dot{fill:var(--ink)}
+.cur{fill:var(--trace);stroke:var(--sheet);stroke-width:2}
+.ideal{fill:none;stroke:var(--trace);stroke-dasharray:3 3}
+
+footer{font-family:var(--f-mono);font-size:.72rem;color:var(--ink-2);border-top:1px solid var(--rule);padding-top:12px;display:flex;flex-wrap:wrap;gap:8px 24px;justify-content:space-between}
+
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation-duration:.001ms!important;transition-duration:.001ms!important}
+}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Palim<span class="over">psest</span></h1>
+    <p class="lede">A small language model lives on this page. It learned to write by counting which word follows which in about eighty ordinary sentences. <b>Teach it a secret, delete the secret, and then try to make it forget.</b> Big models learn much richer patterns, but they have the same problem.</p>
+  </header>
+
+  <ol class="rail" id="rail" aria-label="Steps"></ol>
+
+  <main class="desk">
+    <section class="sheet" aria-labelledby="h-conv">
+      <h2 id="h-conv">Conversation</h2>
+      <p class="sub">Start a sentence and the model finishes it, one predicted word at a time.</p>
+      <div id="log" role="log" aria-live="polite"></div>
+      <form class="row" id="composer" autocomplete="off">
+        <label for="prompt" class="sr-only" style="position:absolute;left:-9999px">Start of a sentence</label>
+        <input type="text" id="prompt" placeholder="Start a sentence, e.g. I never told" maxlength="80">
+        <button class="btn" id="go" type="submit">Continue</button>
+      </form>
+      <div class="chips" id="chips"></div>
+      <div class="confess" id="confess">
+        <span class="label" id="confess-label">Teach it a secret</span>
+        <label for="secret" style="position:absolute;left:-9999px">Your secret</label>
+        <textarea id="secret" maxlength="240" placeholder="I ate my roommate's birthday cake and blamed the dog."></textarea>
+        <p>Something small and true. It stays in this browser tab, isn't sent anywhere and is gone when you close the page. The model will read it six times, the way large models end up memorising text they see repeatedly.</p>
+        <div class="row"><button class="btn trace" id="teach" type="button">Write it into the model</button></div>
+      </div>
+    </section>
+
+    <section class="sheet" aria-labelledby="h-model">
+      <h2 id="h-model">The model</h2>
+      <p class="sub">Every word it knows, sized by how often it has seen it. Lines are word-to-word links your secret added.</p>
+      <div class="lexwrap" id="lexwrap">
+        <div id="lexicon"></div>
+        <svg id="arcs" aria-hidden="true"><g id="arcs-secret"></g><g id="arcs-walk"></g></svg>
+      </div>
+      <div class="legend"><span><i></i>tracer ink: added by your secret</span><span style="text-decoration:line-through">pruned word</span></div>
+      <div class="meters">
+        <div class="meter res">
+          <div class="top"><span>Secret residue</span><b id="m-res">0%</b></div>
+          <div class="bar"><span id="b-res" style="width:0"></span></div>
+          <div class="desc">How much of what the secret taught it is still in the model.</div>
+        </div>
+        <div class="meter">
+          <div class="top"><span>Everything else it knew</span><b id="m-know">100%</b></div>
+          <div class="bar"><span id="b-know" style="width:100%"></span></div>
+          <div class="desc">Its original word links, compared with the model before your secret.</div>
+        </div>
+        <div class="vocab" id="vocab"></div>
+      </div>
+    </section>
+  </main>
+
+  <section class="forget locked" id="forget" aria-labelledby="h-forget">
+    <h2 id="h-forget">Make it forget</h2>
+    <p class="sub" id="forget-sub">Delete the message first. Then try the three ways a model can be made to forget.</p>
+    <div class="tools">
+      <div class="tool">
+        <h3>Subtract the secret</h3>
+        <p>Remove exactly the counts your secret added. This is the clean way, and it needs the secret's exact text.</p>
+        <button class="btn ghost" type="button" disabled>Subtract</button>
+        <span class="why">Unavailable: you deleted the text it needs.</span>
+        <p style="font-size:.8rem">The tracer ink on this page is for you. The model's tools can't see it, and real models don't have it.</p>
+      </div>
+      <div class="tool">
+        <h3>Prune rare words</h3>
+        <p>Cut the least-used words first, without knowing which ones were yours. Your secret was repeated, so it doesn't look rare.</p>
+        <label for="prune" class="readout" id="prune-out">0% of words removed</label>
+        <input type="range" id="prune" min="0" max="100" step="5" value="0">
+        <p style="font-size:.8rem">Drag it, then continue a sentence to hear the damage.</p>
+      </div>
+      <div class="tool">
+        <h3>Retrain from scratch</h3>
+        <p>Throw the model away and rebuild it from its original reading, which never included your secret.</p>
+        <button class="btn" type="button" id="retrain">Retrain</button>
+        <p style="font-size:.8rem">Here it takes a second. For a large model it means repeating the whole training run, which is rarely done for one request.</p>
+      </div>
+    </div>
+    <div class="frontier">
+      <svg id="chart" viewBox="0 0 420 260" role="img" aria-label="Trade-off between secret residue and other knowledge"></svg>
+      <div>
+        <h3>The cost of forgetting</h3>
+        <p>Each dot is one pruning level. Lower means less of the secret remains. Further right means more of everything else survives.</p>
+        <p>Pruning slides down and to the left together. The corner you want, where the secret is gone and nothing else is lost, is only reached by retraining, and that produces a new model.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <span>Everything runs in this tab. Nothing is sent, saved or shared.</span>
+    <span>Trigram language model · rehearsal ×6 · pruning by word frequency</span>
+  </footer>
+</div>
+
+<script>
+(() => {
+'use strict';
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const wait = ms => new Promise(r => setTimeout(r, reduced ? 0 : ms));
+function hashStr(s){ let h = 0x811c9dc5; for (let i = 0; i < s.length; i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193); } return h >>> 0; }
+function mulberry32(a){ return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+
+/* ==========================================================================
+   The training text: what the model read before it met you.
+   ========================================================================== */
+const CORPUS = `
+This morning I made coffee and watched the rain. This morning I walked to work and the streets were quiet.
+My sister called me after lunch. My mother likes to cook on sundays. My father fixes old radios in the garage.
+My brother never answers his phone. My best friend lives near the sea. I never told anyone how much I like the rain.
+I never liked mornings but I like coffee. I told my friend about the new job. I told her the train was late.
+Last night I read a book about the ocean. Last night we ate dinner on the balcony. Last night I could not sleep.
+The best thing about sundays is the quiet. The best thing about my job is the people. I want to learn how to swim.
+I want to visit my grandmother in the spring. We kept the windows open all summer. She kept a plant on every shelf.
+He took the bus home after work. I took a photo of the sunset. I lost my keys again this week.
+I found an old letter in a drawer. The cat sleeps on my bed every night. The kitchen smells like bread in the morning.
+We walked along the river after dinner. I bought new shoes for the winter. My friend and I watched a film about space.
+I forgot to call my mother back. I miss the house where I grew up. I love the sound of rain on the window.
+I love my friends and my family. I broke a glass while washing the dishes. I hid the presents in the closet.
+Nobody knows that I sing in the car. I think about the sea when I cannot sleep. School was hard but I liked the library.
+At work I answer emails and drink tea. The money is in a jar on the kitchen shelf. I saved some money for a trip in the summer.
+She said the meeting was moved to friday. He said he would call me later. I read the news and then I made breakfast.
+I ate an apple on the way to work. My neighbour waters the plants when I travel. We laughed about it for a long time.
+I felt tired but happy after the walk. The train was late again this morning. I wrote a list of things to do.
+I cleaned the house before my parents came. My parents met at a party in the city. I am learning to cook rice properly.
+The dog next door barks at the post. I waited for the bus in the rain. I want to be better at saying no.
+I was afraid of the dark when I was little. I still have my first phone in a box. We argued about the music in the car.
+She gave me a book for my birthday. My birthday is in the middle of winter. I was late for school every monday.
+The teacher said I talked too much. I like to walk when I need to think. I told myself I would go to bed early.
+I never finish the books I start. My sister and I shared a room for years. I used to hide under the table during storms.
+The best part of the day is the evening. I am happy when the house is quiet. I keep a notebook in my bag.
+He forgot his umbrella at my house. We ate cake and talked until midnight. I want to tell you something about the garden.
+The garden is full of tomatoes this year. I wish I had more time to read. I feel calm near the water.
+I heard a song that reminded me of school. My phone was broken for a whole week.`;
+const REHEARSALS = 6;
+const START = '<s>', END = '</s>';
+
+/* ==========================================================================
+   A trigram language model with backoff. Every count remembers whether it
+   came from the original reading (b) or from your secret (s). That tag is
+   the page's tracer ink: the model itself never looks at it.
+   ========================================================================== */
+function tokenize(text){
+  return [...text.toLowerCase().replace(/[’]/g, "'").matchAll(/[\p{L}\p{N}]+(?:'\p{L}+)?|[.!?]/gu)].map(m => m[0]);
+}
+function splitSentences(text){
+  const out = []; let cur = [];
+  for (const t of tokenize(text)){
+    if (/^[.!?]$/.test(t)){ if (cur.length) out.push(cur); cur = []; }
+    else cur.push(t);
+  }
+  if (cur.length) out.push(cur);
+  return out;
+}
+function newModel(){ return { uni: new Map(), bi: new Map(), tri: new Map() }; }
+function bump(map, key, src){ let c = map.get(key); if (!c){ c = { b: 0, s: 0 }; map.set(key, c); } c[src]++; }
+function bumpRow(table, ctx, w, src){ let row = table.get(ctx); if (!row){ row = new Map(); table.set(ctx, row); } bump(row, w, src); }
+function train(m, sent, src){
+  const seq = [START, START, ...sent, END];
+  for (let i = 2; i < seq.length; i++){
+    const w = seq[i];
+    if (w !== END) bump(m.uni, w, src);
+    bumpRow(m.bi, seq[i - 1], w, src);
+    bumpRow(m.tri, seq[i - 2] + ' ' + seq[i - 1], w, src);
+  }
+}
+const BASE_SENTS = splitSentences(CORPUS);
+function buildBase(){ const m = newModel(); BASE_SENTS.forEach(s => train(m, s, 'b')); return m; }
+const BASE = buildBase();          // reference copy, never changed
+const NONE = new Set();
+
+function rowDist(row, pruned){
+  if (!row) return null;
+  let tot = 0;
+  for (const [w, c] of row) if (!pruned.has(w)) tot += c.b + c.s;
+  return tot ? { row, tot } : null;
+}
+function nextDist(m, w1, w2, pruned){
+  if (pruned.has(w2)) return [];
+  const d2 = rowDist(m.bi.get(w2), pruned);
+  if (!d2) return [];
+  const d3 = pruned.has(w1) ? null : rowDist(m.tri.get(w1 + ' ' + w2), pruned);
+  const out = new Map();
+  const add = (d, l) => {
+    for (const [w, c] of d.row){
+      if (pruned.has(w)) continue;
+      const e = out.get(w) || { p: 0, sp: 0 };
+      e.p += l * (c.b + c.s) / d.tot; e.sp += l * c.s / d.tot;
+      out.set(w, e);
+    }
+  };
+  if (d3){ add(d3, .75); add(d2, .25); } else add(d2, 1);
+  return [...out].map(([w, e]) => ({ w, p: e.p, share: e.p ? e.sp / e.p : 0 }));
+}
+
+function generate(prefixToks, rng, maxLen = 20){
+  const m = state.model, pr = state.pruned;
+  const known = t => m.uni.has(t) && !pr.has(t);
+  let w1 = START, w2 = START;
+  const words = prefixToks.filter(t => !/^[.!?]$/.test(t));
+  const ended = prefixToks.length && /^[.!?]$/.test(prefixToks[prefixToks.length - 1]);
+  if (!ended && words.length){
+    const b = words[words.length - 1], a = words.length > 1 ? words[words.length - 2] : START;
+    if (known(b)){ w2 = b; w1 = (a === START || known(a)) ? a : START; }
+  }
+  const from = w2 === START ? null : w2;
+  const out = []; let gaps = 0;
+  for (let i = 0; i < maxLen; i++){
+    const dist = nextDist(m, w1, w2, pr);
+    if (!dist.length){
+      out.push({ gap: true });
+      if (++gaps >= 2) break;
+      w1 = START; w2 = START; continue;
+    }
+    let sum = 0; const ws = dist.map(d => { const x = Math.pow(d.p, 1 / .8); sum += x; return x; });
+    let r = rng() * sum, k = 0;
+    while (k < ws.length - 1 && (r -= ws[k]) > 0) k++;
+    const d = dist[k];
+    if (d.w === END){ out.push({ w: '.', share: d.share, end: true }); break; }
+    out.push({ w: d.w, share: d.share });
+    w1 = w2; w2 = d.w;
+  }
+  return { toks: out, from };
+}
+
+/* ---------- forgetting tools and measurements ---------- */
+function pruneOrder(m){
+  return [...m.uni].map(([w, c]) => ({ w, n: c.b + c.s, h: hashStr(w) }))
+    .sort((a, b) => a.n - b.n || a.h - b.h).map(x => x.w);
+}
+function prunedAt(level){ return new Set(state.order.slice(0, Math.round(level * state.order.length))); }
+function condP(m, a, b, pr){
+  if (pr.has(a) || pr.has(b)) return 0;
+  const d = rowDist(m.bi.get(a), pr);
+  if (!d) return 0;
+  const c = d.row.get(b);
+  return c ? (c.b + c.s) / d.tot : 0;
+}
+function measure(m, pr){
+  let rn = 0, rd = 0, kn = 0, kd = 0;
+  for (const [a, row] of m.bi) for (const [b, c] of row){
+    if (!c.s) continue;
+    const p0 = condP(m, a, b, NONE);
+    rn += c.s * Math.min(1, condP(m, a, b, pr) / p0); rd += c.s;
+  }
+  for (const [a, row] of BASE.bi) for (const [b, c] of row){
+    const p0 = condP(BASE, a, b, NONE);
+    kn += c.b * Math.min(1, condP(m, a, b, pr) / p0); kd += c.b;
+  }
+  return { residue: rd ? rn / rd : 0, knowledge: kd ? kn / kd : 1 };
+}
+
+/* ==========================================================================
+   State
+   ========================================================================== */
+const STEPS = ['Talk to it', 'Teach it a secret', 'Delete the message', 'Try to forget', 'Retrain'];
+const state = {
+  model: buildBase(), pruned: new Set(), order: [], level: 0,
+  stage: 0, secretText: null, taught: false, deleted: false, retrained: false,
+  frontier: [], busy: false, lastWalk: null,
+};
+
+/* ==========================================================================
+   Rendering: rail, conversation, the model's page, meters, chart
+   ========================================================================== */
+function renderRail(){
+  $('#rail').innerHTML = STEPS.map((s, i) => {
+    const done = i < state.stage || (i === 4 && state.retrained);
+    const cur = i === state.stage && !done;
+    return `<li class="${done ? 'done' : ''}"${cur ? ' aria-current="step"' : ''}><b>${done ? '✓' : i + 1}</b>${s}</li>`;
+  }).join('');
+}
+function advance(to){ if (to > state.stage){ state.stage = to; renderRail(); } }
+
+const log = $('#log');
+function addEntry(html, cls = 'entry'){
+  const el = document.createElement('div');
+  el.className = cls; el.innerHTML = html;
+  log.appendChild(el); log.scrollTop = log.scrollHeight;
+  return el;
+}
+function note(html){ return addEntry(html, 'note'); }
+
+function displayWord(w, cap){
+  let s = (w === 'i' || w.startsWith("i'")) ? 'I' + w.slice(1) : w;
+  if (cap) s = s.charAt(0).toUpperCase() + s.slice(1);
+  return s;
+}
+function lineHTML(prefix, toks){
+  let html = prefix ? `<span class="prompt">${esc(prefix)}</span>` : '';
+  toks.forEach((t, i) => {
+    if (t.gap){ html += ` <span class="gap" title="The model lost the words it needed here">▒▒▒</span>`; return; }
+    const sp = (t.w === '.' || (!prefix && i === 0)) ? '' : ' ';
+    const disp = displayWord(t.w, !prefix && i === 0);
+    if (t.share > .04){
+      html += `${sp}<span class="w traced${t.share > .5 ? ' strong' : ''}" style="--t:${t.share.toFixed(2)}" title="${Math.round(t.share * 100)}% of this choice came from your secret">${esc(disp)}</span>`;
+    } else html += sp + esc(disp);
+  });
+  return html;
+}
+function summary(toks){
+  const words = toks.filter(t => !t.gap && t.w !== '.');
+  const traced = words.filter(t => t.share > .04).length;
+  const gaps = toks.filter(t => t.gap).length;
+  const parts = [];
+  if (state.taught || state.deleted) parts.push(`${traced} of ${words.length} words carry tracer ink`);
+  if (gaps) parts.push(`${gaps} gap${gaps > 1 ? 's' : ''} where words were pruned`);
+  return parts.join(' · ');
+}
+
+function continueSentence(text, rng = Math.random, label = ''){
+  text = text.trim();
+  if (!text) return;
+  const res = generate(tokenize(text), rng);
+  const sum = summary(res.toks);
+  addEntry(`<span class="label">${esc(label || 'continuation')}${sum ? ' · ' + esc(sum) : ''}</span><span class="line">${lineHTML(text, res.toks)}</span>`);
+  drawWalk(res);
+}
+
+/* the model's own page */
+const lex = $('#lexicon'), spans = new Map();
+function wordOrder(){
+  const order = [...BASE.uni.keys()].filter(w => state.model.uni.has(w));
+  for (const w of state.model.uni.keys()){
+    if (BASE.uni.has(w)) continue;
+    order.splice(hashStr(w) % (order.length + 1), 0, w);
+  }
+  return order;
+}
+function renderLexicon(fresh = new Set()){
+  const m = state.model;
+  lex.innerHTML = ''; spans.clear();
+  const frag = document.createDocumentFragment();
+  for (const w of wordOrder()){
+    const c = m.uni.get(w), n = c.b + c.s;
+    const s = document.createElement('span');
+    s.textContent = displayWord(w, false);
+    s.style.fontSize = Math.min(1.6, .8 + Math.log2(n) * .11).toFixed(2) + 'em';
+    if (c.s){ s.classList.add('traced'); s.style.setProperty('--t', Math.max(.35, c.s / n).toFixed(2)); }
+    if (state.pruned.has(w)) s.classList.add('scraped');
+    if (fresh.has(w)) s.classList.add('fresh');
+    spans.set(w, s); frag.appendChild(s); frag.appendChild(document.createTextNode(' '));
+  }
+  lex.appendChild(frag);
+  drawArcs();
+}
+function updatePruneClasses(){
+  for (const [w, s] of spans) s.classList.toggle('scraped', state.pruned.has(w));
+  drawArcs();
+}
+function centre(w){
+  const s = spans.get(w);
+  if (!s) return null;
+  const box = $('#lexwrap').getBoundingClientRect(), r = s.getBoundingClientRect();
+  return [r.left - box.left + r.width / 2, r.top - box.top + r.height * .3];
+}
+function arcPath(a, b){
+  const [x1, y1] = a, [x2, y2] = b;
+  const lift = 12 + Math.hypot(x2 - x1, y2 - y1) * .22;
+  return `M${x1.toFixed(1)} ${y1.toFixed(1)} Q${((x1 + x2) / 2).toFixed(1)} ${(Math.min(y1, y2) - lift).toFixed(1)} ${x2.toFixed(1)} ${y2.toFixed(1)}`;
+}
+function drawArcs(){
+  const g = $('#arcs-secret'); let html = '';
+  for (const [a, row] of state.model.bi){
+    if (a === START) continue;
+    for (const [b, c] of row){
+      if (!c.s || b === END || a === b) continue;
+      if (state.pruned.has(a) || state.pruned.has(b)) continue;
+      const p1 = centre(a), p2 = centre(b);
+      if (!p1 || !p2) continue;
+      const share = c.s / (c.b + c.s);
+      html += `<path d="${arcPath(p1, p2)}" stroke="var(--trace)" stroke-opacity="${(.25 + share * .55).toFixed(2)}" stroke-width="${(.8 + Math.log2(1 + c.s) * .45).toFixed(2)}"/>`;
+    }
+  }
+  g.innerHTML = html;
+}
+let walkTimer = 0;
+function drawWalk(res){
+  const g = $('#arcs-walk');
+  const seq = [res.from, ...res.toks.map(t => t.gap ? null : t.w)];
+  let html = '', n = 0;
+  for (let i = 0; i < seq.length - 1; i++){
+    const a = seq[i], b = seq[i + 1];
+    if (!a || !b || b === '.') continue;
+    const p1 = centre(a), p2 = centre(b);
+    if (!p1 || !p2) continue;
+    const share = res.toks[i].share || 0;
+    html += `<path class="walk" style="animation-delay:${(n++ * .12).toFixed(2)}s" d="${arcPath(p1, p2)}" stroke="color-mix(in oklab, var(--trace) ${Math.round(share * 100)}%, var(--ink))" stroke-width="1.6" stroke-opacity=".8"/>`;
+  }
+  g.innerHTML = html;
+  clearTimeout(walkTimer);
+  walkTimer = setTimeout(() => { g.innerHTML = ''; }, 6000);
+}
+
+function renderMeters(){
+  const m = measure(state.model, state.pruned);
+  const has = state.taught || state.deleted;
+  $('#m-res').textContent = has ? Math.round(m.residue * 100) + '%' : (state.retrained ? '0%' : '—');
+  $('#b-res').style.width = (has ? m.residue * 100 : 0) + '%';
+  $('#m-know').textContent = Math.round(m.knowledge * 100) + '%';
+  $('#b-know').style.width = (m.knowledge * 100) + '%';
+  const total = state.model.uni.size, pr = state.pruned.size;
+  const fromSecret = [...state.model.uni.values()].filter(c => c.s && !c.b).length;
+  $('#vocab').textContent = `${total} words known${fromSecret ? ` · ${fromSecret} learned only from your secret` : ''}${pr ? ` · ${pr} pruned` : ''}`;
+  return m;
+}
+
+function renderChart(){
+  const svg = $('#chart');
+  const W = 420, H = 260, L = 44, R = 16, T = 16, B = 40;
+  const x = k => L + k * (W - L - R), y = r => T + (1 - r) * (H - T - B);
+  let html = '';
+  for (const v of [0, .25, .5, .75, 1]){
+    html += `<line class="grid" x1="${x(v)}" x2="${x(v)}" y1="${T}" y2="${H - B}"/><line class="grid" x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}"/>`;
+    html += `<text class="ax" x="${x(v)}" y="${H - B + 14}" text-anchor="middle">${v * 100}%</text><text class="ax" x="${L - 6}" y="${y(v) + 3}" text-anchor="end">${v * 100}%</text>`;
+  }
+  html += `<text class="ax" x="${(L + W - R) / 2}" y="${H - 6}" text-anchor="middle">everything else it knew →</text>`;
+  html += `<text class="ax" transform="translate(11 ${(T + H - B) / 2}) rotate(-90)" text-anchor="middle">secret residue →</text>`;
+  html += `<circle class="ideal" cx="${x(1)}" cy="${y(0)}" r="9"/><text class="ax" x="${x(1) - 14}" y="${y(0) - 8}" text-anchor="end" dy="-6">forgotten, nothing lost</text>`;
+  const F = state.frontier;
+  if (F.length){
+    html += `<polyline class="curve" points="${F.map(p => `${x(p.knowledge).toFixed(1)},${y(p.residue).toFixed(1)}`).join(' ')}"/>`;
+    html += F.map(p => `<circle class="dot" cx="${x(p.knowledge).toFixed(1)}" cy="${y(p.residue).toFixed(1)}" r="2.4"/>`).join('');
+  }
+  if (state.retrained){
+    html += `<circle class="cur" cx="${x(1)}" cy="${y(0)}" r="6"/><text class="ax" x="${x(1) - 14}" y="${y(0) + 18}" text-anchor="end" style="fill:var(--trace)">retrained: a new model</text>`;
+  } else if (F.length){
+    const p = F[Math.round(state.level * 20)];
+    if (p) html += `<circle class="cur" cx="${x(p.knowledge).toFixed(1)}" cy="${y(p.residue).toFixed(1)}" r="6"/>`;
+  }
+  svg.innerHTML = html;
+}
+
+/* ==========================================================================
+   Actions
+   ========================================================================== */
+const CHIPS = ['I never told', 'My', 'This morning I', 'Last night I', 'The best thing about', 'I want to', 'My sister'];
+$('#chips').innerHTML = CHIPS.map(c => `<button type="button" class="chip">${esc(c)}</button>`).join('');
+$('#chips').addEventListener('click', e => {
+  const b = e.target.closest('.chip');
+  if (b && !state.busy){ continueSentence(b.textContent); advance(1); }
+});
+$('#composer').addEventListener('submit', e => {
+  e.preventDefault();
+  if (state.busy) return;
+  const v = $('#prompt').value;
+  if (!v.trim()) return;
+  continueSentence(v); advance(1);
+  $('#prompt').value = '';
+});
+
+function setBusy(b){
+  state.busy = b;
+  for (const el of document.querySelectorAll('#go, #teach, #retrain, #prune, .chip, #delete')) el.disabled = b;
+}
+
+$('#teach').addEventListener('click', async () => {
+  const ta = $('#secret');
+  const text = ta.value.trim();
+  if (!text){ ta.focus(); ta.placeholder = 'Write something first, even one short sentence.'; return; }
+  const sents = splitSentences(text);
+  if (!sents.length){ ta.focus(); return; }
+  setBusy(true);
+  ta.value = '';
+  state.secretText = text; state.taught = true; state.deleted = false; state.retrained = false;
+  state.pruned = new Set(); state.level = 0; $('#prune').value = 0; $('#prune-out').textContent = '0% of words removed';
+  $('#confess').hidden = true;
+  advance(2);
+  const block = addEntry(`<span class="label">your secret · stored in the transcript</span>
+    <span class="line" id="secret-line">${[...text].map(c => `<span>${esc(c)}</span>`).join('')}</span>
+    <div class="row"><button class="btn trace" type="button" id="delete">Delete the message</button></div>`, 'entry secret-block');
+  block.id = 'secret-entry';
+  const before = new Set(state.model.uni.keys());
+  for (let r = 1; r <= REHEARSALS; r++){
+    sents.forEach(s => train(state.model, s, 's'));
+    const fresh = new Set([...state.model.uni.keys()].filter(w => !before.has(w)));
+    renderLexicon(r === 1 ? new Set([...fresh, ...sents.flat()]) : new Set());
+    renderMeters();
+    const n = note(`rehearsal <b>${r}/${REHEARSALS}</b> · word links strengthened`);
+    await wait(380);
+    if (r < REHEARSALS) n.remove();
+  }
+  note('learned. try <b>I never told</b> or <b>My</b> before you delete it.');
+  block.querySelector('#delete').addEventListener('click', deleteSecret);
+  setBusy(false);
+});
+
+async function deleteSecret(){
+  if (state.busy) return;
+  setBusy(true);
+  const entry = $('#secret-entry'), line = $('#secret-line');
+  entry.querySelector('.row').remove();
+  const chars = [...line.children];
+  const order = chars.map((_, i) => i).sort(() => Math.random() - .5);
+  const step = reduced ? 0 : Math.max(6, Math.min(30, 900 / chars.length));
+  order.forEach((idx, n) => setTimeout(() => chars[idx].classList.add('off'), n * step));
+  await wait(order.length * step + 300);
+  line.remove();
+  entry.className = 'entry';
+  entry.removeAttribute('id');
+  entry.innerHTML = `<span class="label">deleted · 0 characters of your secret remain on this page</span><div class="scraped"></div>`;
+  state.secretText = null;             // the text is really gone from memory
+  state.deleted = true; state.taught = false;
+  state.order = pruneOrder(state.model);
+  state.frontier = Array.from({ length: 21 }, (_, i) => measure(state.model, prunedAt(i / 20)));
+  const m = renderMeters();
+  note(`message deleted · transcript clear · model unchanged · residue <b>${Math.round(m.residue * 100)}%</b>`);
+  $('#forget').classList.remove('locked');
+  $('#forget-sub').textContent = 'The text is gone. The model still carries what it learned from it. Try the three ways to make it forget.';
+  advance(3);
+  renderChart();
+  setBusy(false);
+  continueSentence('I never told', Math.random, 'the model, after deletion');
+}
+
+$('#prune').addEventListener('input', e => {
+  if (!state.deleted) return;
+  state.level = e.target.value / 100;
+  state.pruned = prunedAt(state.level);
+  $('#prune-out').textContent = `${e.target.value}% of words removed (${state.pruned.size} of ${state.order.length})`;
+  updatePruneClasses(); renderMeters(); renderChart();
+});
+$('#prune').addEventListener('change', () => {
+  if (!state.deleted) return;
+  const m = measure(state.model, state.pruned);
+  note(`pruned ${Math.round(state.level * 100)}% · residue <b>${Math.round(m.residue * 100)}%</b> · everything else <b>${Math.round(m.knowledge * 100)}%</b>`);
+});
+
+$('#retrain').addEventListener('click', async () => {
+  if (state.busy || !state.deleted) return;
+  setBusy(true);
+  lex.classList.add('rewriting');
+  $('#arcs-secret').innerHTML = ''; $('#arcs-walk').innerHTML = '';
+  note('discarding the model · rereading all ' + BASE_SENTS.length + ' original sentences');
+  await wait(900);
+  state.model = buildBase();
+  state.pruned = new Set(); state.level = 0; $('#prune').value = 0; $('#prune-out').textContent = '0% of words removed';
+  state.deleted = false; state.retrained = true;
+  renderLexicon();
+  await wait(60);
+  lex.classList.remove('rewriting');
+  renderMeters(); renderChart();
+  advance(4); renderRail();
+  note('retrained · residue <b>0%</b> · everything else <b>100%</b> · the model you told your secret to no longer exists');
+  $('#forget').classList.add('locked');
+  $('#forget-sub').textContent = 'Retrained. Teach the new model another secret to try again.';
+  $('#confess-label').textContent = 'Teach the new model a secret';
+  $('#confess').hidden = false;
+  setBusy(false);
+  continueSentence('I never told', Math.random, 'the new model');
+});
+
+/* ---------- layout upkeep ---------- */
+new ResizeObserver(() => { drawArcs(); }).observe($('#lexwrap'));
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => drawArcs());
+
+/* ---------- first frame: a working model with one example ---------- */
+renderRail(); renderLexicon(); renderMeters(); renderChart();
+continueSentence('This morning I', mulberry32(7), 'example continuation');
+continueSentence('My sister', mulberry32(11), 'example continuation');
+})();
+</script>
+</body>
+</html>
