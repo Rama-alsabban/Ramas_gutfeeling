@@ -97,6 +97,23 @@ header {
 /* ---------- draw mode ---------- */
 body.drawing footer, body.drawing #stage, body.drawing .meta, body.drawing .empty-hint, body.drawing .mark { display: none; }
 body.drawing .textfield { visibility: hidden; }
+
+/* ---------- air mode ---------- */
+#airView { position: absolute; inset: 0; overflow: hidden; background: var(--paper); }
+#airVideo { display: none; }
+#air { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; cursor: crosshair; display: block; }
+.air-top, .air-bottom {
+  position: absolute; left: 0; right: 0; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between;
+  padding: 16px clamp(16px, 3vw, 36px); pointer-events: none;
+}
+.air-top { top: 0; } .air-bottom { bottom: 0; align-items: flex-end; }
+.air-top > *, .air-bottom > * { pointer-events: auto; }
+.air-word { display: flex; align-items: baseline; gap: 12px; }
+#airWord { font-weight: 900; font-size: clamp(22px, 4vw, 44px); letter-spacing: -.02em; line-height: 1; }
+.air-tools, .air-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.air-msg { margin: 0; max-width: 46ch; font-family: var(--serif); font-style: italic; font-size: 17px; line-height: 1.3; }
+.btn:disabled { opacity: .35; cursor: default; background: var(--paper); color: var(--ink); }
+.btn.hot { background: var(--ink); color: var(--paper); }
 #drawView {
   position: absolute; inset: 0; overflow: auto;
   display: grid; grid-template-columns: minmax(0, auto) minmax(0, 1fr); gap: clamp(18px, 3vw, 40px);
@@ -282,6 +299,7 @@ a { color: inherit; }
   <div class="modes" role="tablist" aria-label="Mode">
     <button class="mode on" id="modeType" role="tab" aria-selected="true">Type</button>
     <button class="mode" id="modeDraw" role="tab" aria-selected="false">Draw</button>
+    <button class="mode" id="modeAir" role="tab" aria-selected="false">Air</button>
   </div>
   <label class="textfield">
     <span class="label">Text →</span>
@@ -309,6 +327,25 @@ a { color: inherit; }
     <svg id="art" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Typography canvas"></svg>
   </div>
   <div class="empty-hint" id="hint">Drag a letter to stretch it · click the type to edit it · describe a transformation below</div>
+  <section id="airView" hidden>
+    <video id="airVideo" playsinline muted></video>
+    <canvas id="air" aria-label="Floating dots: connect them to form a letter"></canvas>
+    <div class="air-top">
+      <div class="air-word"><span class="label">Your word</span><b id="airWord">—</b></div>
+      <div class="air-tools">
+        <button class="btn" id="airCamera" type="button">Use camera</button>
+        <button class="btn" id="airClear" type="button">New dots</button>
+      </div>
+    </div>
+    <div class="air-bottom">
+      <p class="air-msg" id="airMsg">Connect the floating dots: press on a dot and drag through others. When your lines form a letter, it appears.</p>
+      <div class="air-actions">
+        <button class="btn" id="airKeep" type="button" disabled>Keep shape as my letter</button>
+        <button class="btn" id="airUndoLetter" type="button" disabled>Remove last letter</button>
+        <button class="btn primary" id="airUse" type="button" disabled>Use word →</button>
+      </div>
+    </div>
+  </section>
   <section id="drawView" hidden>
     <div class="pad-col">
       <div class="pad-head"><span class="label">Drawing</span><b id="padChar">A</b><span class="label" id="padState">empty</span></div>
@@ -1351,6 +1388,7 @@ fontSelect.addEventListener("change", () => {
 });
 $("#modeType").addEventListener("click", () => setMode("type"));
 $("#modeDraw").addEventListener("click", () => setMode("draw"));
+$("#modeAir").addEventListener("click", () => setMode("air"));
 
 $("#promptForm").addEventListener("submit", (e) => { e.preventDefault(); applyInstruction($("#promptInput").value); });
 $("#undoBtn").addEventListener("click", undo);
@@ -1382,11 +1420,14 @@ const charset = () => ($("#incLower").checked ? UPPER.concat(LOWER, DIGITS) : UP
 const textChars = () => new Set([...state.text].filter((c) => /[A-Za-z0-9]/.test(c)).map((c) => (hand.glyphs[c] || !/[a-z]/.test(c) || $("#incLower").checked ? c : c.toUpperCase())));
 
 function setMode(m) {
+  if (mode === "air" && m !== "air") stopAir();
   mode = m;
-  document.body.classList.toggle("drawing", m === "draw");
+  document.body.classList.toggle("drawing", m !== "type");
   $("#drawView").hidden = m !== "draw";
-  for (const [id, on] of [["#modeType", m === "type"], ["#modeDraw", m === "draw"]]) { $(id).classList.toggle("on", on); $(id).setAttribute("aria-selected", on); }
-  if (m === "draw") {
+  $("#airView").hidden = m !== "air";
+  for (const [id, on] of [["#modeType", m === "type"], ["#modeDraw", m === "draw"], ["#modeAir", m === "air"]]) { $(id).classList.toggle("on", on); $(id).setAttribute("aria-selected", on); }
+  if (m === "air") startAir();
+  else if (m === "draw") {
     $("#penWeight").value = hand.weight;
     if ([...textChars()].some((c) => /[a-z0-9]/.test(c))) $("#incLower").checked = true;
     selectChar(nextChar(null) || padChar);
@@ -1559,6 +1600,336 @@ $("#useFont").addEventListener("click", () => {
   if (state.font !== "hand") commit({ ...state, font: "hand" }, { morph: false });
   setMode("type");
   showReply("set in your own hand. drag a letter to stretch it, or describe what should happen next.");
+});
+
+// ---------- air mode: connect floating dots, a letter appears ----------
+// Recognition is local shape matching against stick-letter templates (no AI involved):
+// it is instant, ignores stroke order and direction, and only needs the lines you connected.
+const LETTER_SKELETONS = {
+  A: [[[0,1,.5,0,1,1],[.25,.5,.75,.5]]],
+  B: [[[0,0,0,1],[0,0,.7,0,.9,.15,.9,.35,.7,.5,0,.5],[.7,.5,1,.65,1,.85,.75,1,0,1]]],
+  C: [[[1,.1,.7,0,.3,0,0,.3,0,.7,.3,1,.7,1,1,.9]], [[1,0,0,0,0,1,1,1]]],
+  D: [[[0,0,0,1],[0,0,.6,0,1,.3,1,.7,.6,1,0,1]], [[0,0,0,1,1,.6,1,.4,0,0]]],
+  E: [[[1,0,0,0,0,1,1,1],[0,.5,.8,.5]]],
+  F: [[[1,0,0,0,0,1],[0,.5,.8,.5]]],
+  G: [[[1,.15,.7,0,.3,0,0,.3,0,.7,.3,1,.7,1,1,.75,1,.55,.6,.55]], [[1,0,0,0,0,1,1,1,1,.5,.5,.5]]],
+  H: [[[0,0,0,1],[1,0,1,1],[0,.5,1,.5]]],
+  I: [[[.5,0,.5,1]], [[0,0,1,0],[.5,0,.5,1],[0,1,1,1]]],
+  J: [[[1,0,1,.75,.75,1,.25,1,0,.75]], [[1,0,1,1,0,1,0,.7]]],
+  K: [[[0,0,0,1],[1,0,0,.55],[.3,.4,1,1]], [[0,0,0,1],[1,0,0,.5,1,1]]],
+  L: [[[0,0,0,1,1,1]]],
+  M: [[[0,1,0,0,.5,.6,1,0,1,1]]],
+  N: [[[0,1,0,0,1,1,1,0]]],
+  O: [[[.5,0,0,.25,0,.75,.5,1,1,.75,1,.25,.5,0]], [[0,0,1,0,1,1,0,1,0,0]]],
+  P: [[[0,1,0,0,.75,0,1,.2,1,.35,.75,.5,0,.5]], [[0,1,0,0,1,0,1,.5,0,.5]]],
+  Q: [[[.5,0,0,.25,0,.75,.5,1,1,.75,1,.25,.5,0],[.6,.7,1,1]], [[0,0,1,0,1,1,0,1,0,0],[.6,.6,1.1,1.1]]],
+  R: [[[0,1,0,0,.75,0,1,.2,1,.35,.75,.5,0,.5],[.4,.5,1,1]], [[0,1,0,0,1,0,1,.5,0,.5,1,1]]],
+  S: [[[1,.1,.7,0,.3,0,0,.2,.1,.4,.9,.6,1,.8,.7,1,.3,1,0,.9]], [[1,0,0,0,0,.5,1,.5,1,1,0,1]]],
+  T: [[[0,0,1,0],[.5,0,.5,1]]],
+  U: [[[0,0,0,.75,.3,1,.7,1,1,.75,1,0]], [[0,0,0,1,1,1,1,0]]],
+  V: [[[0,0,.5,1,1,0]]],
+  W: [[[0,0,.25,1,.5,.4,.75,1,1,0]]],
+  X: [[[0,0,1,1],[1,0,0,1]]],
+  Y: [[[0,0,.5,.5,1,0],[.5,.5,.5,1]]],
+  Z: [[[0,0,1,0,0,1,1,1]]],
+};
+// both drawings are fitted into a unit box (thin shapes like I keep their proportions),
+// then compared by average distance from each one's ink to the other's lines
+function fitStrokes(strokes) {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const st of strokes) for (let i = 0; i < st.length; i += 2) { x0 = Math.min(x0, st[i]); x1 = Math.max(x1, st[i]); y0 = Math.min(y0, st[i + 1]); y1 = Math.max(y1, st[i + 1]); }
+  const w = x1 - x0, h = y1 - y0, m = Math.max(w, h) || 1;
+  const sx = w < m * 0.3 ? m : w, sy = h < m * 0.3 ? m : h, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+  const segs = [], pts = [];
+  for (const st of strokes) {
+    for (let i = 0; i + 3 < st.length; i += 2) {
+      const s = [0.5 + (st[i] - cx) / sx, 0.5 + (st[i + 1] - cy) / sy, 0.5 + (st[i + 2] - cx) / sx, 0.5 + (st[i + 3] - cy) / sy];
+      segs.push(s);
+      const n = Math.max(1, Math.ceil(Math.hypot(s[2] - s[0], s[3] - s[1]) / 0.03));
+      for (let k = 0; k <= n; k++) pts.push([lerp(s[0], s[2], k / n), lerp(s[1], s[3], k / n)]);
+    }
+  }
+  return { segs, pts };
+}
+function segDist(px, py, s) {
+  const dx = s[2] - s[0], dy = s[3] - s[1], l2 = dx * dx + dy * dy;
+  const t = l2 ? clamp(((px - s[0]) * dx + (py - s[1]) * dy) / l2, 0, 1) : 0;
+  return Math.hypot(px - (s[0] + t * dx), py - (s[1] + t * dy));
+}
+const meanMin = (pts, segs) => pts.reduce((sum, [x, y]) => sum + Math.min(...segs.map((s) => segDist(x, y, s))), 0) / pts.length;
+const shapeDistance = (a, b) => (meanMin(a.pts, b.segs) + meanMin(b.pts, a.segs)) / 2;
+const TEMPLATES = Object.entries(LETTER_SKELETONS).flatMap(([ch, variants]) => variants.map((v) => ({ ch, shape: fitStrokes(v) })));
+function recognizeLetter(strokes) {
+  const shape = fitStrokes(strokes);
+  if (!shape.segs.length) return null;
+  let best = null;
+  for (const t of TEMPLATES) { const d = shapeDistance(shape, t.shape); if (!best || d < best.d) best = { ch: t.ch, d }; }
+  return best;
+}
+const AIR_MATCH = 0.09;                  // average distance (in letter-box units) below which a shape counts as a letter
+
+const airCv = $("#air"), airCtx = airCv.getContext("2d"), airVideo = $("#airVideo");
+const AIR = { run: false, raf: 0, dots: [], strokes: [], cur: null, cursor: null, pinch: false, wasPinch: false,
+  lastEdit: 0, shown: null, word: "", seed: Math.random() * 100, cam: null, hands: null, handPts: null, lastVideoTime: -1 };
+
+function airLayout() {
+  const r = airCv.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+  airCv.width = Math.round(r.width * dpr); airCv.height = Math.round(r.height * dpr);
+  AIR.dpr = dpr; AIR.W = r.width; AIR.H = r.height;
+  // keep the grid clear of the controls at the top and bottom
+  const narrow = r.width < 760, topPad = narrow ? 120 : 110, botPad = narrow ? 210 : 100, avail = Math.max(160, r.height - topPad - botPad);
+  const S = Math.min(r.width * 0.78, avail * 0.92), cols = 5, rows = 5;
+  AIR.S = S;
+  const gw = S * 0.8, gh = S, ox = r.width / 2 - gw / 2, oy = topPad + avail / 2 - gh / 2;
+  AIR.dots = [];
+  for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) {
+    const k = AIR.dots.length;
+    AIR.dots.push({ ax: ox + (i / (cols - 1)) * gw + (rand(k + AIR.seed) - 0.5) * S * 0.09, ay: oy + (j / (rows - 1)) * gh + (rand(k * 3.1 + AIR.seed) - 0.5) * S * 0.07, x: 0, y: 0 });
+  }
+}
+function airStep(now) {
+  if (!AIR.run) return;
+  const t = now / 1000, S = AIR.S;
+  for (const [k, d] of AIR.dots.entries()) {
+    d.x = d.ax + (noise3(k * 1.7, t * 0.25, AIR.seed) - 0.5) * S * 0.07;
+    d.y = d.ay + (noise3(k * 2.3 + 40, t * 0.25, AIR.seed) - 0.5) * S * 0.07;
+  }
+  trackHand(now);
+  airLogic(now);
+  airDraw(now);
+  AIR.raf = requestAnimationFrame(airStep);
+}
+const nearDot = (p, r) => { let best = -1, bd = r; AIR.dots.forEach((d, i) => { const dd = Math.hypot(d.x - p.x, d.y - p.y); if (dd < bd) { bd = dd; best = i; } }); return best; };
+function airPress(p) {
+  const i = nearDot(p, AIR.S * 0.075);
+  if (i >= 0) {
+    if (AIR.shown && AIR.shown.settled) { AIR.strokes = []; AIR.shown = null; updateAirUI(); }   // a new letter starts
+    AIR.cur = [i]; AIR.last = p;
+  } else if (AIR.fromHand) pressButtonAt(p);
+}
+// every dot the pointer passed since the last event joins the line, even on a fast swipe
+function airDrag(p) {
+  if (!AIR.cur) return;
+  const a = AIR.last || p, R = AIR.S * 0.06, dx = p.x - a.x, dy = p.y - a.y, l2 = dx * dx + dy * dy;
+  const hits = [];
+  AIR.dots.forEach((d, i) => {
+    const t = l2 ? clamp(((d.x - a.x) * dx + (d.y - a.y) * dy) / l2, 0, 1) : 0;
+    if (Math.hypot(d.x - (a.x + t * dx), d.y - (a.y + t * dy)) < R) hits.push([t, i]);
+  });
+  for (const [, i] of hits.sort((u, v) => u[0] - v[0])) if (i !== AIR.cur[AIR.cur.length - 1]) AIR.cur.push(i);
+  AIR.last = p;
+}
+function airRelease(now) {
+  if (AIR.cur && AIR.cur.length >= 2) { AIR.strokes.push(AIR.cur); AIR.lastEdit = now; AIR.shown = null; updateAirUI(); }
+  AIR.cur = null; AIR.last = null;
+}
+function airLogic(now) {
+  const p = AIR.cursor;
+  if (AIR.fromHand) {
+    if (p && AIR.pinch && !AIR.wasPinch) airPress(p);
+    if (p && AIR.pinch) airDrag(p);
+    if (!AIR.pinch && AIR.wasPinch) airRelease(now);
+  }
+  AIR.wasPinch = AIR.pinch;
+  if (AIR.strokes.length && !AIR.cur && !AIR.shown && now - AIR.lastEdit > 700) airRecognize(now);
+  // a pause keeps the letter: it joins the word, and the next line starts a new letter
+  if (AIR.shown && AIR.shown.ch && !AIR.shown.settled && !AIR.cur && now - AIR.lastEdit > 2300) {
+    AIR.shown.settled = now; AIR.word += AIR.shown.ch; updateAirUI();
+    airMsg(`${AIR.shown.ch} added. Connect dots again for the next letter, or keep this dot shape as your own ${AIR.shown.ch}.`);
+  }
+}
+function strokeCoords(st) { return st.flatMap((i) => [AIR.dots[i].x, AIR.dots[i].y]); }
+function airRecognize(now) {
+  const strokes = AIR.strokes.map(strokeCoords);
+  const best = recognizeLetter(strokes);
+  if (!best || best.d > AIR_MATCH) {
+    AIR.shown = { miss: true, at: now };
+    airMsg(best ? `Not a letter yet (closest: ${best.ch}). Keep connecting, or press New dots.` : "Keep connecting.");
+    return;
+  }
+  AIR.shown = { ch: best.ch, at: now, settled: 0, strokes };
+  updateAirUI();
+  airMsg(`Looks like ${best.ch}. Add more lines to change it, or pause to keep it.`);
+}
+function airMsg(t) { $("#airMsg").textContent = t; }
+function updateAirUI() {
+  $("#airWord").textContent = AIR.word || "—";
+  $("#airUse").disabled = $("#airUndoLetter").disabled = !AIR.word;
+  $("#airKeep").disabled = !(AIR.shown && AIR.shown.settled);
+  if (AIR.shown && AIR.shown.ch) $("#airKeep").textContent = `Keep shape as my ${AIR.shown.ch}`;
+}
+function glyphPath(ctx, ch, box) {
+  const g = traceGlyph(ch, activeFont(state));
+  if (!g.contours.length) return false;
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const c of g.contours) for (let i = 0; i < c.length; i += 2) { x0 = Math.min(x0, c[i]); x1 = Math.max(x1, c[i]); y0 = Math.min(y0, c[i + 1]); y1 = Math.max(y1, c[i + 1]); }
+  const sc = Math.min(box.w / (x1 - x0), box.h / (y1 - y0));
+  const ox = box.x + box.w / 2 - ((x0 + x1) / 2) * sc, oy = box.y + box.h / 2 - ((y0 + y1) / 2) * sc;
+  ctx.beginPath();
+  for (const c of g.contours) { ctx.moveTo(ox + c[0] * sc, oy + c[1] * sc); for (let i = 2; i < c.length; i += 2) ctx.lineTo(ox + c[i] * sc, oy + c[i + 1] * sc); ctx.closePath(); }
+  return true;
+}
+function airDraw(now) {
+  const c = airCtx, dpr = AIR.dpr, W = AIR.W, H = AIR.H, S = AIR.S;
+  const ink = token("--ink"), paper = token("--paper"), mute = token("--mute"), faint = token("--faint");
+  c.setTransform(dpr, 0, 0, dpr, 0, 0);
+  c.globalAlpha = 1; c.fillStyle = paper; c.fillRect(0, 0, W, H);
+  if (AIR.cam && airVideo.readyState >= 2) {
+    const vw = airVideo.videoWidth, vh = airVideo.videoHeight, sc = Math.max(W / vw, H / vh);
+    AIR.vmap = { dw: vw * sc, dh: vh * sc, dx: (W - vw * sc) / 2, dy: (H - vh * sc) / 2 };
+    c.save(); c.translate(W, 0); c.scale(-1, 1);
+    c.filter = "grayscale(1) contrast(1.35)"; c.globalAlpha = 0.42;
+    c.drawImage(airVideo, AIR.vmap.dx, AIR.vmap.dy, AIR.vmap.dw, AIR.vmap.dh);
+    c.restore(); c.filter = "none"; c.globalAlpha = 1;
+  }
+  // the letter appearing out of the lines
+  const sh = AIR.shown;
+  if (sh && sh.ch) {
+    // faint preview while you can still change it, solid once it is kept
+    const k = sh.settled ? clamp((now - sh.settled) / 700, 0, 1) : 0, e = 1 - Math.pow(1 - k, 3);
+    const alpha = sh.settled ? lerp(0.22, 1, e) : clamp((now - sh.at) / 400, 0, 1) * 0.22;
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const st of AIR.strokes) for (const i of st) { const d = AIR.dots[i]; x0 = Math.min(x0, d.x); x1 = Math.max(x1, d.x); y0 = Math.min(y0, d.y); y1 = Math.max(y1, d.y); }
+    const h = Math.max(y1 - y0, S * 0.5), w = Math.max(x1 - x0, h * 0.25);
+    const grow = lerp(0.85, 1.08, e);
+    const box = { x: (x0 + x1) / 2 - (w * grow) / 2, y: (y0 + y1) / 2 - (h * grow) / 2, w: w * grow, h: h * grow };
+    if (glyphPath(c, sh.ch, box)) { c.globalAlpha = alpha; c.fillStyle = ink; c.fill("evenodd"); c.globalAlpha = 1; }
+  }
+  // connected lines
+  const kept = sh && sh.settled ? clamp((now - sh.settled) / 700, 0, 1) : 0;
+  const lw = S * 0.032, lineAlpha = lerp(1, 0.3, kept);
+  c.lineCap = c.lineJoin = "round";
+  const line = (pts, col, wdt) => { c.strokeStyle = col; c.lineWidth = wdt; c.beginPath(); pts.forEach((i, n) => { const d = AIR.dots[i]; n ? c.lineTo(d.x, d.y) : c.moveTo(d.x, d.y); }); c.stroke(); };
+  c.globalAlpha = lineAlpha;
+  for (const st of AIR.strokes) line(st, kept ? mute : ink, lerp(lw, lw * 0.4, kept));
+  c.globalAlpha = 1;
+  if (AIR.cur) {
+    line(AIR.cur, ink, lw);
+    if (AIR.cursor) { const d = AIR.dots[AIR.cur[AIR.cur.length - 1]]; c.strokeStyle = ink; c.lineWidth = 1.5; c.setLineDash([5, 6]); c.beginPath(); c.moveTo(d.x, d.y); c.lineTo(AIR.cursor.x, AIR.cursor.y); c.stroke(); c.setLineDash([]); }
+  }
+  // dots
+  const used = new Set(AIR.strokes.flat().concat(AIR.cur || []));
+  const hover = AIR.cursor ? nearDot(AIR.cursor, S * 0.075) : -1;
+  AIR.dots.forEach((d, i) => {
+    const r = (i === hover ? 9 : 5.5) + Math.sin(now / 600 + i) * 0.8;
+    c.beginPath(); c.arc(d.x, d.y, r, 0, Math.PI * 2);
+    if (used.has(i)) { c.fillStyle = ink; c.fill(); } else { c.fillStyle = paper; c.fill(); c.strokeStyle = ink; c.lineWidth = 1.5; c.stroke(); }
+  });
+  // hand skeleton + cursor
+  if (AIR.handPts) { c.fillStyle = mute; for (const p of AIR.handPts) { c.beginPath(); c.arc(p.x, p.y, 2.5, 0, Math.PI * 2); c.fill(); } }
+  if (AIR.cursor && AIR.fromHand) {
+    c.beginPath(); c.arc(AIR.cursor.x, AIR.cursor.y, AIR.pinch ? 7 : 13, 0, Math.PI * 2);
+    c.lineWidth = 2; c.strokeStyle = ink; c.stroke(); if (AIR.pinch) { c.fillStyle = ink; c.fill(); }
+  }
+}
+
+// pointer: press on a dot and drag through others
+const airPoint = (e) => { const r = airCv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
+airCv.addEventListener("pointerdown", (e) => {
+  if (e.button !== 0) return;
+  airCv.setPointerCapture(e.pointerId);
+  AIR.fromHand = false; AIR.cursor = airPoint(e); AIR.pinch = AIR.wasPinch = true;
+  airPress(AIR.cursor);
+});
+airCv.addEventListener("pointermove", (e) => {
+  if (AIR.fromHand && AIR.handSeen && performance.now() - AIR.handSeen < 500) return;
+  AIR.fromHand = false; AIR.cursor = airPoint(e);
+  if (AIR.pinch) airDrag(AIR.cursor);
+});
+const airUp = () => { if (AIR.fromHand) return; AIR.pinch = AIR.wasPinch = false; airRelease(performance.now()); };
+airCv.addEventListener("pointerup", airUp); airCv.addEventListener("pointercancel", airUp);
+airCv.addEventListener("pointerleave", () => { if (!AIR.fromHand && !AIR.pinch) AIR.cursor = null; });
+
+// pinching over a button presses it, so the camera mode works without touching the computer
+function pressButtonAt(p) {
+  const r = airCv.getBoundingClientRect(), el = document.elementFromPoint(r.left + p.x, r.top + p.y);
+  const b = el && el.closest && el.closest("#airView button");
+  if (b && !b.disabled) { b.classList.add("hot"); setTimeout(() => b.classList.remove("hot"), 250); b.click(); }
+}
+
+// camera + hand tracking (MediaPipe, loaded only when the camera starts)
+const MP_VERSION = "0.10.14";
+async function startCamera() {
+  const btn = $("#airCamera");
+  if (AIR.cam) { stopCamera(); return; }
+  btn.disabled = true; airMsg("Asking for the camera…");
+  try {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error("blocked");
+    AIR.cam = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
+  } catch (e) {
+    AIR.cam = null; btn.disabled = false;
+    airMsg("The camera isn't available on this page (inside Claude it's always blocked). Connect the dots with your mouse or trackpad instead, or open the standalone site to use your hand.");
+    return;
+  }
+  airVideo.srcObject = AIR.cam; await airVideo.play().catch(() => {});
+  btn.textContent = "Camera off"; btn.disabled = false;
+  airMsg("Loading hand tracking…");
+  try {
+    if (!AIR.hands) {
+      const vision = await import(`https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MP_VERSION}`);
+      const files = await vision.FilesetResolver.forVisionTasks(`https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MP_VERSION}/wasm`);
+      AIR.hands = await vision.HandLandmarker.createFromOptions(files, {
+        baseOptions: { modelAssetPath: "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task", delegate: "GPU" },
+        runningMode: "VIDEO", numHands: 1,
+      });
+    }
+    airMsg("Pinch your thumb and index finger on a dot, then move through other dots. Open your fingers to finish a line.");
+  } catch (e) {
+    console.error(e);
+    airMsg("Hand tracking couldn't load, so use your mouse or trackpad on the dots. The camera stays on as a backdrop.");
+  }
+}
+function stopCamera() {
+  if (AIR.cam) AIR.cam.getTracks().forEach((t) => t.stop());
+  AIR.cam = null; AIR.handPts = null; airVideo.srcObject = null;
+  $("#airCamera").textContent = "Use camera";
+}
+function trackHand(now) {
+  if (!AIR.hands || !AIR.cam || airVideo.readyState < 2 || !AIR.vmap) return;
+  if (airVideo.currentTime === AIR.lastVideoTime) return;
+  AIR.lastVideoTime = airVideo.currentTime;
+  let res; try { res = AIR.hands.detectForVideo(airVideo, now); } catch { return; }
+  const lm = res && res.landmarks && res.landmarks[0];
+  if (!lm) { AIR.handPts = null; if (AIR.fromHand) { AIR.pinch = false; AIR.cursor = null; } return; }
+  const { dw, dh, dx, dy } = AIR.vmap;
+  const toCanvas = (p) => ({ x: AIR.W - (dx + p.x * dw), y: dy + p.y * dh });
+  AIR.handPts = lm.map(toCanvas);
+  const th = AIR.handPts[4], ix = AIR.handPts[8], size = Math.hypot(AIR.handPts[0].x - AIR.handPts[9].x, AIR.handPts[0].y - AIR.handPts[9].y) || 1;
+  const pinchD = Math.hypot(th.x - ix.x, th.y - ix.y) / size;
+  const target = { x: (th.x + ix.x) / 2, y: (th.y + ix.y) / 2 };
+  AIR.cursor = AIR.cursor && AIR.fromHand ? { x: lerp(AIR.cursor.x, target.x, 0.55), y: lerp(AIR.cursor.y, target.y, 0.55) } : target;
+  AIR.fromHand = true; AIR.handSeen = performance.now();
+  AIR.pinch = AIR.pinch ? pinchD < 0.45 : pinchD < 0.3;      // hysteresis keeps lines from breaking
+}
+
+function startAir() {
+  AIR.run = true;
+  requestAnimationFrame(() => { airLayout(); updateAirUI(); cancelAnimationFrame(AIR.raf); AIR.raf = requestAnimationFrame(airStep); });
+}
+function stopAir() { AIR.run = false; cancelAnimationFrame(AIR.raf); stopCamera(); }
+window.addEventListener("resize", () => { if (mode === "air") airLayout(); });
+$("#airCamera").addEventListener("click", startCamera);
+$("#airClear").addEventListener("click", () => {
+  AIR.strokes = []; AIR.cur = null; AIR.shown = null; AIR.seed = Math.random() * 100; airLayout(); updateAirUI();
+  airMsg("New dots. Connect them into a letter.");
+});
+$("#airUndoLetter").addEventListener("click", () => { AIR.word = AIR.word.slice(0, -1); updateAirUI(); });
+$("#airUse").addEventListener("click", () => {
+  if (!AIR.word) return;
+  commit({ ...state, text: AIR.word }, { morph: false }); syncText();
+  setMode("type");
+  showReply("spelled in the air. drag, describe, or speak to transform it.");
+});
+$("#airKeep").addEventListener("click", () => {
+  const sh = AIR.shown; if (!sh || !sh.ch) return;
+  // fit the dot shape into the pad's cap-height box and save it as a handwriting glyph
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const st of sh.strokes) for (let i = 0; i < st.length; i += 2) { x0 = Math.min(x0, st[i]); x1 = Math.max(x1, st[i]); y0 = Math.min(y0, st[i + 1]); y1 = Math.max(y1, st[i + 1]); }
+  const k = (PADG.base - PADG.cap) / Math.max(y1 - y0, 1), w = (x1 - x0) * k;
+  hand.glyphs[sh.ch] = { strokes: sh.strokes.map((st) => st.map((v, i) => Math.round((i % 2 ? PADG.cap + (v - y0) * k : 50 - w / 2 + (v - x0) * k) * 10) / 10)), ai: false };
+  saveHand();
+  airMsg(`Saved as your ${sh.ch}. Pick “My handwriting” in the typeface menu to set text with your dot letters.`);
+  if (state.font === "hand") render({ morph: false });
 });
 
 // boot: wait (briefly) for web fonts so outlines use the right faces
