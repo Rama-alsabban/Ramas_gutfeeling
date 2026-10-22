@@ -20,6 +20,7 @@ There are no presets and no keyword matching. Ask for "carved from rough stone",
 - **Cumulative layers.** Each instruction adds a layer on top of the previous ones. The model sees the whole stack, so "more", "less", "undo the wobble" or "same but sharper" work. It can also remove or replace earlier layers.
 - **Layer stack.** Click a chip to see the exact code the model wrote, or press × to remove that layer.
 - **Undo, redo and reset.** Use the buttons or ⌘/Ctrl+Z and ⇧⌘/Ctrl+Z. Reset can be undone too.
+- **Light and dark.** Plain type is black on white, or white on black when the browser or Claude is in dark mode.
 - **PNG export.** Saves a high-resolution render (about 3200 px on the long side) of the current composition, including the current frame of an animation.
 - **Smooth transitions.** If a change keeps the same outline structure, the shapes morph into their new form. Otherwise they fade in.
 - **Motion.** Ask for breathing, floating or wobbling type and the model writes time-based code.
@@ -73,7 +74,9 @@ Opening `index.html` directly from disk (`file://`) also works.
 
 ## Connecting the AI
 
-The page calls the Anthropic Messages API (`POST https://api.anthropic.com/v1/messages`). You can connect it in two ways.
+**Inside Claude (no key needed).** When the page is published as a Claude artifact, it uses the viewer's own Claude account through the artifact's built-in Claude access. Claude asks for permission before the first instruction runs, and the **AI** panel only offers a quality setting (Balanced or Best). The steps below are for running the page anywhere else.
+
+Outside Claude, the page calls the Anthropic Messages API (`POST https://api.anthropic.com/v1/messages`). You can connect it in two ways.
 
 ### Option A: your own key in the browser (quickest, personal use)
 

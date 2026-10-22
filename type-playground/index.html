@@ -9,17 +9,25 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Anton&family=DM+Serif+Display:ital@0;1&family=Inter+Tight:wght@400;500;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
+/* layout: one screen — top bar, full-bleed type canvas, prompt bar. Pure black & white, inverted in dark mode. */
 :root {
   --ink: #000;
   --paper: #fff;
-  --mute: #8a8a8a;
+  --mute: #858585;
+  --faint: #c2c2c2;
+  --soft: #f2f2f2;
   --line: #000;
   --ui: "Inter Tight", "Helvetica Neue", Arial, sans-serif;
   --mono: "Space Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
   --serif: "DM Serif Display", Georgia, serif;
   --ease: cubic-bezier(.2,.7,.1,1);
 }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --ink: #fff; --paper: #000; --mute: #8f8f8f; --faint: #4a4a4a; --soft: #141414; --line: #fff; color-scheme: dark; }
+}
+:root[data-theme="dark"] { --ink: #fff; --paper: #000; --mute: #8f8f8f; --faint: #4a4a4a; --soft: #141414; --line: #fff; color-scheme: dark; }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 html, body { height: 100%; margin: 0; }
 body {
   background: var(--paper);
@@ -68,7 +76,7 @@ header {
   transition: background .15s, color .15s;
 }
 .tool:hover:not(:disabled) { background: var(--ink); color: var(--paper); }
-.tool:disabled { color: #c4c4c4; cursor: default; }
+.tool:disabled { color: var(--faint); cursor: default; }
 .tool kbd { font-family: inherit; font-size: 9px; opacity: .5; }
 .dot { width: 7px; height: 7px; border-radius: 50%; border: 1px solid var(--ink); display: inline-block; }
 .dot.on { background: var(--ink); }
@@ -125,7 +133,7 @@ footer { border-top: 1px solid var(--line); }
 @keyframes chipIn { from { opacity: 0; transform: translateY(6px); } }
 .chip b { font-family: var(--mono); font-weight: 400; font-size: 10px; color: var(--mute); }
 .chip:hover { background: var(--ink); color: var(--paper); }
-.chip:hover b { color: #aaa; }
+.chip:hover b { color: var(--faint); }
 .chip .x { border: 0; background: none; cursor: pointer; padding: 2px 6px; font-size: 14px; line-height: 1; opacity: .5; }
 .chip .x:hover { opacity: 1; }
 .none { font-family: var(--mono); font-size: 10px; color: var(--mute); letter-spacing: .08em; text-transform: uppercase; }
@@ -142,7 +150,7 @@ form.prompt { display: flex; align-items: stretch; gap: 0; padding: 8px 18px 14p
   flex: 1; min-width: 0; border: 0; border-bottom: 2px solid var(--ink); outline: 0; background: transparent;
   font-size: clamp(18px, 2.4vw, 30px); font-weight: 500; letter-spacing: -.02em; padding: 8px 0;
 }
-#promptInput::placeholder { color: #b5b5b5; }
+#promptInput::placeholder { color: var(--faint); }
 #applyBtn {
   border: 2px solid var(--ink); background: var(--ink); color: var(--paper);
   padding: 0 28px; margin-left: 14px; cursor: pointer;
@@ -165,7 +173,7 @@ dialog {
   border: 1px solid var(--ink); padding: 0; width: min(560px, calc(100vw - 32px));
   background: var(--paper); color: var(--ink); box-shadow: 10px 10px 0 var(--ink);
 }
-dialog::backdrop { background: rgba(255,255,255,.75); backdrop-filter: blur(2px); }
+dialog::backdrop { background: color-mix(in srgb, var(--paper) 75%, transparent); backdrop-filter: blur(2px); }
 .dlg-head { display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; border-bottom: 1px solid var(--ink); font-weight: 900; }
 .dlg-body { padding: 18px; display: grid; gap: 14px; }
 .dlg-body p { margin: 0; font-size: 13px; line-height: 1.5; }
@@ -177,9 +185,11 @@ dialog::backdrop { background: rgba(255,255,255,.75); backdrop-filter: blur(2px)
 .btn { border: 1px solid var(--ink); background: var(--paper); padding: 8px 16px; cursor: pointer; font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; }
 .btn.primary, .btn:hover { background: var(--ink); color: var(--paper); }
 .close { border: 0; background: none; font-size: 20px; cursor: pointer; line-height: 1; }
-pre.code { margin: 0; max-height: 55vh; overflow: auto; font-family: var(--mono); font-size: 11px; line-height: 1.55; background: #f3f3f3; padding: 14px; white-space: pre-wrap; word-break: break-word; }
-.small { font-size: 11px !important; color: #555; }
+pre.code { margin: 0; max-height: 55vh; overflow: auto; font-family: var(--mono); font-size: 11px; line-height: 1.55; background: var(--soft); color: var(--ink); padding: 14px; white-space: pre-wrap; word-break: break-word; }
+.small { font-size: 11px !important; color: var(--mute); }
 a { color: inherit; }
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }
 
 @media (max-width: 760px) {
   header { flex-wrap: wrap; }
@@ -237,6 +247,16 @@ a { color: inherit; }
     <div class="dlg-head">Connect the AI <button class="close" value="cancel" aria-label="Close">×</button></div>
     <div class="dlg-body">
       <p id="settingsMsg">TYPE PLAYGROUND sends every instruction to a Claude model, which writes new transformation code for the type. Paste an Anthropic API key, or point the endpoint at your own proxy.</p>
+      <div id="viaClaude" class="dlg-body" style="padding:0" hidden>
+        <p>Connected through your Claude account, so no API key is needed. Claude asks once for permission before the first instruction runs.</p>
+        <label class="field"><span class="label">Quality</span>
+          <select id="cfgTier">
+            <option value="default">Balanced — faster</option>
+            <option value="complex">Best — more inventive, slower</option>
+          </select>
+        </label>
+      </div>
+      <div id="viaKey" class="dlg-body" style="padding:0">
       <label class="field"><span class="label">Anthropic API key</span><input id="cfgKey" type="password" placeholder="sk-ant-…" autocomplete="off"></label>
       <label class="field"><span class="label">Model</span>
         <select id="cfgModel">
@@ -254,6 +274,7 @@ a { color: inherit; }
       </label>
       <label class="field"><span class="label">Endpoint</span><input id="cfgEndpoint" placeholder="https://api.anthropic.com/v1/messages"></label>
       <p class="small">The key is kept only in this browser (localStorage) and sent only to the endpoint above. For anything public, use a proxy so the key never reaches the browser — see README.md.</p>
+      </div>
     </div>
     <div class="dlg-foot"><button class="btn" value="cancel">Cancel</button><button class="btn primary" id="saveCfg" value="save">Save</button></div>
   </form>
@@ -288,6 +309,11 @@ const FONTS = {
 };
 const DEFAULT_TEXT = "TYPE SOMETHING";
 const BASE_STYLE = { fill: "#000", stroke: "none", strokeWidth: "0", strokeLinejoin: "miter", opacity: "1", background: "#fff", blend: "normal" };
+// plain type follows the interface theme: black on white, or white on black
+function themedBase() {
+  const cs = getComputedStyle(document.documentElement);
+  return { ...BASE_STYLE, fill: cs.getPropertyValue("--ink").trim() || "#000", background: cs.getPropertyValue("--paper").trim() || "#fff" };
+}
 const EXAMPLES = [
   "Add sharp edges to the letters", "Make the typography look like it's melting", "Stretch the letters horizontally",
   "Make the letters look like balloons", "Make the text wavy", "Make the letters overlap", "Make the typography more chaotic",
@@ -548,7 +574,7 @@ function applyGlyphTransform(r, g, gi) {
 
 function buildGeometry(st, t) {
   const glyphs = layout(st.text, activeFont(st.layers));
-  const style = { ...BASE_STYLE }, copies = [];
+  const style = themedBase(), copies = [];
   for (const layer of st.layers) {
     const fns = fnsFor(layer);
     if (layer.resample > 0) { const s = clamp(layer.resample, 0.8, 600); for (const g of glyphs) g.contours = g.contours.map((c) => resample(c, s)); }
@@ -732,9 +758,16 @@ const cfg = () => ({
   endpoint: store.get("endpoint", "") || "https://api.anthropic.com/v1/messages",
 });
 const isDirect = (c) => /api\.anthropic\.com/.test(c.endpoint);
-const connected = () => { const c = cfg(); return !!c.key || !isDirect(c); };
+// Inside the Claude viewer the page can ask Claude on the viewer's own account (no key needed)
+let sampleFn = null;
+const samplePromise = (window.claude && window.claude.use ? window.claude.use("sample") : Promise.resolve(null))
+  .catch(() => null).then((s) => { sampleFn = s; $("#keyDot").classList.toggle("on", connected()); return s; });
+const connected = () => { const c = cfg(); return !!sampleFn || !!c.key || !isDirect(c); };
 function openSettings(msg) {
   const c = cfg();
+  $("#viaClaude").hidden = !sampleFn; $("#viaKey").hidden = !!sampleFn;
+  $("#cfgTier").value = store.get("tier", "default");
+  if (sampleFn && !msg) $("#settingsMsg").textContent = "TYPE PLAYGROUND sends every instruction to Claude, which writes new transformation code for the type.";
   $("#cfgKey").value = c.key; $("#cfgModel").value = c.model; $("#cfgEffort").value = c.effort;
   $("#cfgEndpoint").value = store.get("endpoint", "");
   if (msg) $("#settingsMsg").textContent = msg;
@@ -744,6 +777,7 @@ $("#settings").addEventListener("close", () => {
   if ($("#settings").returnValue !== "save") return;
   store.set("key", $("#cfgKey").value.trim()); store.set("model", $("#cfgModel").value);
   store.set("effort", $("#cfgEffort").value); store.set("endpoint", $("#cfgEndpoint").value.trim());
+  store.set("tier", $("#cfgTier").value);
   $("#keyDot").classList.toggle("on", connected());
 });
 $("#settingsBtn").addEventListener("click", () => openSettings());
@@ -809,6 +843,28 @@ const RESPONSE_SCHEMA = {
   properties: { reply: { type: "string" }, text: { type: "string" }, clear: { type: "boolean" },
     remove: { type: "array", items: { type: "string" } }, layers: { type: "array", items: LAYER_SCHEMA } },
 };
+
+const SAMPLE_ERRORS = {
+  not_granted: "Claude access wasn't allowed for this page. Reload the page to be asked again.",
+  sampling_disabled: "Claude isn't available for this account.",
+  rate_limited: "Too many requests right now. Wait a moment, then press Apply again.",
+  session_expired: "Your Claude session expired. Sign in again, then retry.",
+  refused: "Claude declined this instruction. Try describing it differently.",
+  empty_completion: "Claude returned nothing. Try a simpler instruction.",
+  prompt_too_large: "The layer stack has grown too large. Remove a few layers or reset.",
+};
+async function callViaSample(messages, onProgress) {
+  const turns = [{ role: "user", content: SYSTEM_PROMPT }, ...messages];
+  try {
+    const { text } = await sampleFn(turns, { modelTier: store.get("tier", "default"), cache: false, onText: onProgress });
+    return text;
+  } catch (e) {
+    throw new Error(SAMPLE_ERRORS[e && e.code] || "Claude couldn't answer (" + ((e && e.code) || "error") + "). Press Apply to try again.");
+  }
+}
+async function callModel(messages, onProgress) {
+  return sampleFn ? callViaSample(messages, onProgress) : callClaude(messages);
+}
 
 // request features are dropped (and remembered) if an endpoint or model rejects them
 const features = { schema: true, fallbacks: true, effort: true };
@@ -898,20 +954,22 @@ function validate(st) {
 
 function describeState() {
   const layers = state.layers.map(({ prompt, ...l }) => ({ ...l, from_instruction: prompt }));
-  return `CURRENT TEXT: ${JSON.stringify(state.text)}\nCURRENT LAYER STACK (bottom → top): ${layers.length ? JSON.stringify(layers) : "[] (plain type)"}`;
+  const base = themedBase();
+  return `CANVAS THEME: plain type is ${base.fill} on ${base.background} (keep effects readable on this background)\nCURRENT TEXT: ${JSON.stringify(state.text)}\nCURRENT LAYER STACK (bottom → top): ${layers.length ? JSON.stringify(layers) : "[] (plain type)"}`;
 }
 
 let busy = false;
 async function applyInstruction(prompt) {
   prompt = prompt.trim();
   if (!prompt || busy) return;
+  if (!connected()) { setBusy(true, "Connecting"); await samplePromise; setBusy(false); }
   if (!connected()) { openSettings("To interpret instructions, TYPE PLAYGROUND needs a language model. Paste an Anthropic API key (or set a proxy endpoint) to continue."); return; }
   setBusy(true, "Interpreting");
   showReply("“" + prompt + "”");
   const messages = [{ role: "user", content: `${describeState()}\n\nINSTRUCTION: ${prompt}` }];
   try {
     for (let attempt = 0; attempt < 3; attempt++) {
-      const text = await callClaude(messages);
+      const text = await callModel(messages, () => { if (busy) $("#statusLabel").textContent = "Writing code…"; });
       let next, data;
       try {
         data = parseJSON(text);
@@ -960,11 +1018,16 @@ async function exportPNG() {
     const cv = document.createElement("canvas"); cv.width = w; cv.height = h;
     cv.getContext("2d").drawImage(img, 0, 0, w, h);
     const blob = await new Promise((ok) => cv.toBlob(ok, "image/png"));
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = "type-playground-" + new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-") + ".png";
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    const filename = "type-playground-" + new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-") + ".png";
+    const downloads = window.claude && window.claude.use ? await window.claude.use("downloads").catch(() => null) : null;
+    if (downloads) {
+      try { await downloads.save({ filename, data: blob }); }
+      catch (e) { if (e && e.code === "declined") return; throw new Error("saving isn't available here"); }
+    } else {
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob); a.download = filename; a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    }
     showReply("exported. " + w + " × " + h + " px.");
   } catch (e) { showReply("Export failed: " + e.message, true); }
   finally { URL.revokeObjectURL(url); }
@@ -988,6 +1051,9 @@ document.addEventListener("keydown", (e) => {
   if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "y" && !inField) { e.preventDefault(); redo(); }
   if (e.key === "/" && !inField) { e.preventDefault(); $("#promptInput").focus(); }
 });
+const rerenderTheme = () => render();
+try { matchMedia("(prefers-color-scheme: dark)").addEventListener("change", rerenderTheme); } catch {}
+new MutationObserver(rerenderTheme).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
 let resizeT; window.addEventListener("resize", () => { clearTimeout(resizeT); resizeT = setTimeout(updateChrome, 100); });
 
 // boot: wait (briefly) for web fonts so outlines use the right faces
