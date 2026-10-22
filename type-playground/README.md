@@ -16,6 +16,8 @@ There are no presets and no keyword matching. Ask for "carved from rough stone",
 
 - **Large central canvas.** It shows "TYPE SOMETHING" by default.
 - **Editable text.** Click the canvas or the `TEXT →` field and type. ` / ` starts a new line. Your layers stay applied while you edit the text, because they are code and don't depend on specific letters.
+- **Draw your own font.** Switch to **Draw** and write letters on the pad with a trackpad, mouse or finger, using the cap, x-height and baseline guides. Press **Complete the font with Claude** and Claude studies your strokes (slant, proportions, wobble, how curves are built) and draws the rest of the alphabet in the same hand, with lowercase and digits if you ask. Claude's letters are marked "AI" and you can redraw any of them. **Use my handwriting** sets your text in it, and every transformation works on it too. Your letters are saved in this browser.
+- **Drag to stretch.** Grab any letter on the canvas and pull it: the far side stays put and the letter stretches toward your pointer like taffy. Each stretch is a layer, so it can be undone, removed or transformed further by later instructions.
 - **Natural-language prompt.** The field at the bottom asks "What do you want to do with your type?" Press **Apply** or Enter to run it.
 - **Cumulative layers.** Each instruction adds a layer on top of the previous ones. The model sees the whole stack, so "more", "less", "undo the wobble" or "same but sharper" work. It can also remove or replace earlier layers.
 - **Layer stack.** Click a chip to see the exact code the model wrote, or press × to remove that layer.
