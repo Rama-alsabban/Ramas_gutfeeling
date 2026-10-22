@@ -378,7 +378,7 @@ a { color: inherit; }
     <button id="micBtn" class="mic" type="button" aria-pressed="false" title="Speak your instructions"><span class="dot"></span> <span class="t">Voice</span></button>
     <button id="applyBtn" type="submit">Apply</button>
   </form>
-  <div class="examples" id="examples"><span class="label">Try →</span></div>
+  <div class="examples" id="examples"><span class="label">Effects →</span></div>
 </footer>
 
 <dialog id="settings">
@@ -454,11 +454,41 @@ function themedBase() {
   const cs = getComputedStyle(document.documentElement);
   return { ...BASE_STYLE, fill: cs.getPropertyValue("--ink").trim() || "#000", background: cs.getPropertyValue("--paper").trim() || "#fff" };
 }
-const EXAMPLES = [
-  "Add sharp edges to the letters", "Make the typography look like it's melting", "Stretch the letters horizontally",
-  "Make the letters look like balloons", "Make the text wavy", "Make the letters overlap", "Make the typography more chaotic",
-  "Carve it out of rough stone", "Let it breathe slowly", "Print it like a cheap photocopy",
+// Built-in effects: hand-written layers that work instantly, without the AI. They stack with each other,
+// with dragged stretches and with AI layers, and use the same engine the AI writes code for.
+const PRESETS = [
+  { label: "Sharp edges", reply: "every curve became a blade.", layer: { name: "Sharp edges", resample: 34,
+    points: "return k > 0.25 ? [x + nx * k * 26, y + ny * k * 26] : [x, y];" } },
+  { label: "Melting", reply: "the ink gave up and slid south.", layer: { name: "Melting", smooth: 2,
+    points: "const rel = clamp((y - g.y) / g.h, 0, 1); const drip = pow(noise(x * 0.035, g.index * 3.1), 2.2); return [x, y + pow(rel, 3) * (20 + 170 * drip) * (ny > 0.2 ? 1 : 0.25)];",
+    filter: '<feGaussianBlur in="SourceGraphic" stdDeviation="4" result="b"/><feColorMatrix in="b" type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 22 -10"/>' } },
+  { label: "Stretch wide", reply: "pulled sideways until the letters had room to breathe.", layer: { name: "Stretch wide",
+    glyph: "return { scaleX: 1.8, dx: (g.cx - b.cx) * 0.8 };" } },
+  { label: "Balloons", reply: "inflated to bursting point.", layer: { name: "Balloons", smooth: 14,
+    points: "return [x + nx * 12, y + ny * 12];", style: { fill: "url(#tp-balloon)", strokeLinejoin: "round" },
+    defs: '<radialGradient id="tp-balloon" cx="35%" cy="28%" r="80%"><stop offset="0" stop-color="#fff"/><stop offset=".22" stop-color="#bbb"/><stop offset="1" stop-color="#111"/></radialGradient>' } },
+  { label: "Wavy", reply: "the baseline went for a swim.", layer: { name: "Wavy",
+    points: "return [x, y + sin(x * 0.012) * 28];" } },
+  { label: "Overlap", reply: "everyone stepped a little too close.", layer: { name: "Overlap",
+    glyph: "return { dx: -(g.cx - b.cx) * 0.3, opacity: 0.72 };" } },
+  { label: "Chaos", reply: "nobody is standing in line anymore.", layer: { name: "Chaos",
+    glyph: "return { rotate: (rand(g.index * 3.1) - 0.5) * 44, dy: (rand(g.index * 7.7) - 0.5) * 110, scale: 0.8 + rand(g.index * 1.3) * 0.5 };",
+    points: "return [x + (noise(x * 0.05, y * 0.05) - 0.5) * 10, y + (noise(y * 0.05, x * 0.05 + 9) - 0.5) * 10];" } },
+  { label: "Rough stone", reply: "chiselled, not typeset.", layer: { name: "Rough stone", resample: 14,
+    points: "return [x + (fbm(x * 0.025, y * 0.025, 3) - 0.5) * 30, y + (fbm(y * 0.025 + 5, x * 0.025, 3) - 0.5) * 30];",
+    filter: '<feTurbulence type="fractalNoise" baseFrequency="0.06" numOctaves="3" seed="4" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="16" xChannelSelector="R" yChannelSelector="G" result="d"/><feTurbulence type="fractalNoise" baseFrequency="0.5" numOctaves="2" seed="9" result="g"/><feColorMatrix in="g" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -1.6 1.45" result="m"/><feComposite in="d" in2="m" operator="in"/>' } },
+  { label: "Breathe", reply: "inhale, exhale.", layer: { name: "Breathe", animate: true,
+    glyph: "return { scale: 1 + 0.07 * sin(t * 1.6 + g.index * 0.5) };" } },
+  { label: "Photocopy", reply: "third-generation copy, toner running low.", layer: { name: "Photocopy",
+    filter: '<feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="1" seed="3" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="5" xChannelSelector="R" yChannelSelector="G" result="d"/><feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -2.4 1.75" result="m"/><feComposite in="d" in2="m" operator="in"/>' } },
 ];
+function applyPreset(preset) {
+  const layer = normalizeLayer(preset.layer, preset.label + " (built-in effect)");
+  const next = { ...state, layers: [...state.layers, layer] };
+  try { validate(next); } catch (e) { showReply("That effect didn't fit this text: " + e.message, true); return; }
+  commit(next);
+  showReply(preset.reply);
+}
 
 // ---------- small utils ----------
 const $ = (s) => document.querySelector(s);
@@ -1236,7 +1266,7 @@ async function applyInstruction(prompt) {
   prompt = prompt.trim();
   if (!prompt || busy) return;
   if (!connected()) { setBusy(true, "Connecting"); await samplePromise; setBusy(false); }
-  if (!connected()) { openSettings("To interpret instructions, TYPE PLAYGROUND needs a language model. Paste an Anthropic API key (or set a proxy endpoint) to continue."); return; }
+  if (!connected()) { openSettings("Your own descriptions are interpreted by a language model, so they need an Anthropic API key (or a proxy endpoint). The Effects buttons, Draw, Air, dragging and voice commands work without one."); return; }
   setBusy(true, "Interpreting");
   showReply("“" + prompt + "”");
   const messages = [{ role: "user", content: `${describeState()}\n\nINSTRUCTION: ${prompt}` }];
@@ -1396,9 +1426,10 @@ $("#redoBtn").addEventListener("click", redo);
 $("#resetBtn").addEventListener("click", reset);
 $("#exportBtn").addEventListener("click", exportPNG);
 const ex = $("#examples");
-for (const p of EXAMPLES) {
-  const b = document.createElement("button"); b.type = "button"; b.textContent = p;
-  b.addEventListener("click", () => { $("#promptInput").value = p; applyInstruction(p); });
+for (const preset of PRESETS) {
+  const b = document.createElement("button"); b.type = "button"; b.textContent = preset.label;
+  b.title = "Built-in effect, no AI needed. Click again to stack it.";
+  b.addEventListener("click", () => applyPreset(preset));
   ex.appendChild(b);
 }
 document.addEventListener("keydown", (e) => {
