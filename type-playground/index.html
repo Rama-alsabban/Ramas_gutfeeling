@@ -109,7 +109,8 @@ body.drawing .textfield { visibility: hidden; }
 .air-top { top: 0; } .air-bottom { bottom: 0; align-items: flex-end; }
 .air-top > *, .air-bottom > * { pointer-events: auto; }
 .air-word { display: flex; align-items: baseline; gap: 12px; }
-#airWord { font-weight: 900; font-size: clamp(22px, 4vw, 44px); letter-spacing: -.02em; line-height: 1; }
+#airWord { display: flex; align-items: flex-end; gap: 3px; height: clamp(30px, 5vw, 52px); font-weight: 900; font-size: clamp(22px, 4vw, 44px); line-height: 1; }
+#airWord canvas { height: 100%; width: auto; display: block; }
 .air-tools, .air-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .air-msg { margin: 0; max-width: 46ch; font-family: var(--serif); font-style: italic; font-size: 17px; line-height: 1.3; }
 .btn:disabled { opacity: .35; cursor: default; background: var(--paper); color: var(--ink); }
@@ -331,16 +332,15 @@ a { color: inherit; }
     <video id="airVideo" playsinline muted></video>
     <canvas id="air" aria-label="Floating dots: connect them to form a letter"></canvas>
     <div class="air-top">
-      <div class="air-word"><span class="label">Your word</span><b id="airWord">—</b></div>
+      <div class="air-word"><span class="label">Your word</span><div id="airWord" aria-label="Your word">—</div></div>
       <div class="air-tools">
         <button class="btn" id="airCamera" type="button">Use camera</button>
         <button class="btn" id="airClear" type="button">New dots</button>
       </div>
     </div>
     <div class="air-bottom">
-      <p class="air-msg" id="airMsg">Connect the floating dots: press on a dot and drag through others. When your lines form a letter, it appears.</p>
+      <p class="air-msg" id="airMsg">Connect the floating dots: press on a dot and drag through others. Pause, and whatever shape you made becomes a letter.</p>
       <div class="air-actions">
-        <button class="btn" id="airKeep" type="button" disabled>Keep shape as my letter</button>
         <button class="btn" id="airUndoLetter" type="button" disabled>Remove last letter</button>
         <button class="btn primary" id="airUse" type="button" disabled>Use word →</button>
       </div>
@@ -1554,7 +1554,7 @@ Sample curves densely: a point every 3–5 units, numbers with at most one decim
 function compactStrokes(strokes) { return strokes.map((st) => st.map((v) => Math.round(v))); }
 async function completeFont() {
   if (fontJob) return;
-  const samples = Object.entries(hand.glyphs).filter(([, g]) => !g.ai && g.strokes.length);
+  const samples = Object.entries(hand.glyphs).filter(([c, g]) => /^[A-Za-z0-9]$/.test(c) && !g.ai && g.strokes.length);
   if (!samples.length) { drawMsg("Draw at least one letter first. Three or more give Claude a much better sense of your hand.", true); return; }
   drawMsg("Connecting to Claude…");
   await samplePromise;
@@ -1603,70 +1603,9 @@ $("#useFont").addEventListener("click", () => {
 });
 
 // ---------- air mode: connect floating dots, a letter appears ----------
-// Recognition is local shape matching against stick-letter templates (no AI involved):
-// it is instant, ignores stroke order and direction, and only needs the lines you connected.
-const LETTER_SKELETONS = {
-  A: [[[0,1,.5,0,1,1],[.25,.5,.75,.5]]],
-  B: [[[0,0,0,1],[0,0,.7,0,.9,.15,.9,.35,.7,.5,0,.5],[.7,.5,1,.65,1,.85,.75,1,0,1]]],
-  C: [[[1,.1,.7,0,.3,0,0,.3,0,.7,.3,1,.7,1,1,.9]], [[1,0,0,0,0,1,1,1]]],
-  D: [[[0,0,0,1],[0,0,.6,0,1,.3,1,.7,.6,1,0,1]], [[0,0,0,1,1,.6,1,.4,0,0]]],
-  E: [[[1,0,0,0,0,1,1,1],[0,.5,.8,.5]]],
-  F: [[[1,0,0,0,0,1],[0,.5,.8,.5]]],
-  G: [[[1,.15,.7,0,.3,0,0,.3,0,.7,.3,1,.7,1,1,.75,1,.55,.6,.55]], [[1,0,0,0,0,1,1,1,1,.5,.5,.5]]],
-  H: [[[0,0,0,1],[1,0,1,1],[0,.5,1,.5]]],
-  I: [[[.5,0,.5,1]], [[0,0,1,0],[.5,0,.5,1],[0,1,1,1]]],
-  J: [[[1,0,1,.75,.75,1,.25,1,0,.75]], [[1,0,1,1,0,1,0,.7]]],
-  K: [[[0,0,0,1],[1,0,0,.55],[.3,.4,1,1]], [[0,0,0,1],[1,0,0,.5,1,1]]],
-  L: [[[0,0,0,1,1,1]]],
-  M: [[[0,1,0,0,.5,.6,1,0,1,1]]],
-  N: [[[0,1,0,0,1,1,1,0]]],
-  O: [[[.5,0,0,.25,0,.75,.5,1,1,.75,1,.25,.5,0]], [[0,0,1,0,1,1,0,1,0,0]]],
-  P: [[[0,1,0,0,.75,0,1,.2,1,.35,.75,.5,0,.5]], [[0,1,0,0,1,0,1,.5,0,.5]]],
-  Q: [[[.5,0,0,.25,0,.75,.5,1,1,.75,1,.25,.5,0],[.6,.7,1,1]], [[0,0,1,0,1,1,0,1,0,0],[.6,.6,1.1,1.1]]],
-  R: [[[0,1,0,0,.75,0,1,.2,1,.35,.75,.5,0,.5],[.4,.5,1,1]], [[0,1,0,0,1,0,1,.5,0,.5,1,1]]],
-  S: [[[1,.1,.7,0,.3,0,0,.2,.1,.4,.9,.6,1,.8,.7,1,.3,1,0,.9]], [[1,0,0,0,0,.5,1,.5,1,1,0,1]]],
-  T: [[[0,0,1,0],[.5,0,.5,1]]],
-  U: [[[0,0,0,.75,.3,1,.7,1,1,.75,1,0]], [[0,0,0,1,1,1,1,0]]],
-  V: [[[0,0,.5,1,1,0]]],
-  W: [[[0,0,.25,1,.5,.4,.75,1,1,0]]],
-  X: [[[0,0,1,1],[1,0,0,1]]],
-  Y: [[[0,0,.5,.5,1,0],[.5,.5,.5,1]]],
-  Z: [[[0,0,1,0,0,1,1,1]]],
-};
-// both drawings are fitted into a unit box (thin shapes like I keep their proportions),
-// then compared by average distance from each one's ink to the other's lines
-function fitStrokes(strokes) {
-  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-  for (const st of strokes) for (let i = 0; i < st.length; i += 2) { x0 = Math.min(x0, st[i]); x1 = Math.max(x1, st[i]); y0 = Math.min(y0, st[i + 1]); y1 = Math.max(y1, st[i + 1]); }
-  const w = x1 - x0, h = y1 - y0, m = Math.max(w, h) || 1;
-  const sx = w < m * 0.3 ? m : w, sy = h < m * 0.3 ? m : h, cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
-  const segs = [], pts = [];
-  for (const st of strokes) {
-    for (let i = 0; i + 3 < st.length; i += 2) {
-      const s = [0.5 + (st[i] - cx) / sx, 0.5 + (st[i + 1] - cy) / sy, 0.5 + (st[i + 2] - cx) / sx, 0.5 + (st[i + 3] - cy) / sy];
-      segs.push(s);
-      const n = Math.max(1, Math.ceil(Math.hypot(s[2] - s[0], s[3] - s[1]) / 0.03));
-      for (let k = 0; k <= n; k++) pts.push([lerp(s[0], s[2], k / n), lerp(s[1], s[3], k / n)]);
-    }
-  }
-  return { segs, pts };
-}
-function segDist(px, py, s) {
-  const dx = s[2] - s[0], dy = s[3] - s[1], l2 = dx * dx + dy * dy;
-  const t = l2 ? clamp(((px - s[0]) * dx + (py - s[1]) * dy) / l2, 0, 1) : 0;
-  return Math.hypot(px - (s[0] + t * dx), py - (s[1] + t * dy));
-}
-const meanMin = (pts, segs) => pts.reduce((sum, [x, y]) => sum + Math.min(...segs.map((s) => segDist(x, y, s))), 0) / pts.length;
-const shapeDistance = (a, b) => (meanMin(a.pts, b.segs) + meanMin(b.pts, a.segs)) / 2;
-const TEMPLATES = Object.entries(LETTER_SKELETONS).flatMap(([ch, variants]) => variants.map((v) => ({ ch, shape: fitStrokes(v) })));
-function recognizeLetter(strokes) {
-  const shape = fitStrokes(strokes);
-  if (!shape.segs.length) return null;
-  let best = null;
-  for (const t of TEMPLATES) { const d = shapeDistance(shape, t.shape); if (!best || d < best.d) best = { ch: t.ch, d }; }
-  return best;
-}
-const AIR_MATCH = 0.09;                  // average distance (in letter-box units) below which a shape counts as a letter
+// Nothing is guessed: whatever shape you connect becomes a letter as you drew it. It is saved in your
+// handwriting font (as a private character, or as the letter you name it with a key press).
+const AIR_FIRST = 0xE000;
 
 const airCv = $("#air"), airCtx = airCv.getContext("2d"), airVideo = $("#airVideo");
 const AIR = { run: false, raf: 0, dots: [], strokes: [], cur: null, cursor: null, pinch: false, wasPinch: false,
@@ -1703,7 +1642,7 @@ const nearDot = (p, r) => { let best = -1, bd = r; AIR.dots.forEach((d, i) => { 
 function airPress(p) {
   const i = nearDot(p, AIR.S * 0.075);
   if (i >= 0) {
-    if (AIR.shown && AIR.shown.settled) { AIR.strokes = []; AIR.shown = null; updateAirUI(); }   // a new letter starts
+    if (AIR.shown) { AIR.strokes = []; AIR.shown = null; }   // the last shape is done: a new letter starts
     AIR.cur = [i]; AIR.last = p;
   } else if (AIR.fromHand) pressButtonAt(p);
 }
@@ -1731,35 +1670,64 @@ function airLogic(now) {
     if (!AIR.pinch && AIR.wasPinch) airRelease(now);
   }
   AIR.wasPinch = AIR.pinch;
-  if (AIR.strokes.length && !AIR.cur && !AIR.shown && now - AIR.lastEdit > 700) airRecognize(now);
-  // a pause keeps the letter: it joins the word, and the next line starts a new letter
-  if (AIR.shown && AIR.shown.ch && !AIR.shown.settled && !AIR.cur && now - AIR.lastEdit > 2300) {
-    AIR.shown.settled = now; AIR.word += AIR.shown.ch; updateAirUI();
-    airMsg(`${AIR.shown.ch} added. Connect dots again for the next letter, or keep this dot shape as your own ${AIR.shown.ch}.`);
-  }
+  // a pause turns the connected shape into a letter
+  if (AIR.strokes.length && !AIR.cur && !AIR.shown && now - AIR.lastEdit > 1400) airMakeLetter(now);
 }
 function strokeCoords(st) { return st.flatMap((i) => [AIR.dots[i].x, AIR.dots[i].y]); }
-function airRecognize(now) {
+function airMakeLetter(now) {
   const strokes = AIR.strokes.map(strokeCoords);
-  const best = recognizeLetter(strokes);
-  if (!best || best.d > AIR_MATCH) {
-    AIR.shown = { miss: true, at: now };
-    airMsg(best ? `Not a letter yet (closest: ${best.ch}). Keep connecting, or press New dots.` : "Keep connecting.");
-    return;
-  }
-  AIR.shown = { ch: best.ch, at: now, settled: 0, strokes };
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const st of strokes) for (let i = 0; i < st.length; i += 2) { x0 = Math.min(x0, st[i]); x1 = Math.max(x1, st[i]); y0 = Math.min(y0, st[i + 1]); y1 = Math.max(y1, st[i + 1]); }
+  // fit into the cap-height box of the handwriting font; flat shapes (a dash) stay flat
+  const capH = PADG.base - PADG.cap, w = x1 - x0, h = y1 - y0;
+  const k = capH / Math.max(h, w * 0.6, AIR.S * 0.12), top = PADG.cap + (capH - h * k) / 2;
+  const padStrokes = strokes.map((st) => st.map((v, i) => Math.round((i % 2 ? top + (v - y0) * k : 50 - (w * k) / 2 + (v - x0) * k) * 10) / 10));
+  let code = AIR_FIRST; while (hand.glyphs[String.fromCharCode(code)]) code++;
+  const ch = String.fromCharCode(code);
+  hand.glyphs[ch] = { strokes: padStrokes, ai: false, air: true };
+  saveHand();
+  AIR.word += ch;
+  AIR.shown = { ch, at: now, pen: hand.weight / k, prev: undefined };
   updateAirUI();
-  airMsg(`Looks like ${best.ch}. Add more lines to change it, or pause to keep it.`);
+  airMsg("Your shape is a letter now. Press a key (A–Z, 0–9) to make it that letter of your font, or connect dots for the next one.");
 }
+// naming the newest shape: it becomes that letter in the handwriting font
+function airNameLast(key) {
+  const sh = AIR.shown;
+  if (!sh || !sh.ch || AIR.word.slice(-1) !== sh.ch) return;
+  const name = /[a-z]/i.test(key) ? key.toUpperCase() : key;
+  if (name === sh.ch) return;
+  const glyph = hand.glyphs[sh.ch];
+  if (sh.ch.charCodeAt(0) >= AIR_FIRST) delete hand.glyphs[sh.ch];
+  else if (sh.prev) hand.glyphs[sh.ch] = sh.prev; else delete hand.glyphs[sh.ch];   // give back what the old name held
+  sh.prev = hand.glyphs[name];
+  hand.glyphs[name] = { ...glyph, air: false };
+  saveHand();
+  AIR.word = AIR.word.slice(0, -1) + name; sh.ch = name;
+  updateAirUI();
+  airMsg(`This shape is now your ${name}${sh.prev ? `, replacing the ${name} you had` : ""}. Press another key to rename it, or connect dots for the next letter.`);
+}
+document.addEventListener("keydown", (e) => {
+  if (mode !== "air" || e.metaKey || e.ctrlKey || e.altKey || /INPUT|SELECT|TEXTAREA/.test(document.activeElement?.tagName)) return;
+  if (/^[a-z0-9]$/i.test(e.key)) { e.preventDefault(); airNameLast(e.key); }
+});
 function airMsg(t) { $("#airMsg").textContent = t; }
 function updateAirUI() {
-  $("#airWord").textContent = AIR.word || "—";
+  const box = $("#airWord"), dpr = window.devicePixelRatio || 1, hpx = box.clientHeight || 44;
+  box.innerHTML = AIR.word ? "" : "—";
+  for (const ch of AIR.word) {
+    const g = traceGlyph(ch, "hand"), cv = document.createElement("canvas");
+    let x0 = Infinity, x1 = -Infinity; for (const c of g.contours) for (let i = 0; i < c.length; i += 2) { x0 = Math.min(x0, c[i]); x1 = Math.max(x1, c[i]); }
+    const aspect = isFinite(x0) ? clamp((x1 - x0) / 230, 0.15, 3) : 0.4;
+    cv.height = Math.round(hpx * dpr); cv.width = Math.round(hpx * aspect * dpr);
+    const c = cv.getContext("2d");
+    if (glyphPath(c, ch, { x: 0, y: 0, w: cv.width, h: cv.height }, "hand")) { c.fillStyle = token("--ink"); c.fill("evenodd"); }
+    box.appendChild(cv);
+  }
   $("#airUse").disabled = $("#airUndoLetter").disabled = !AIR.word;
-  $("#airKeep").disabled = !(AIR.shown && AIR.shown.settled);
-  if (AIR.shown && AIR.shown.ch) $("#airKeep").textContent = `Keep shape as my ${AIR.shown.ch}`;
 }
-function glyphPath(ctx, ch, box) {
-  const g = traceGlyph(ch, activeFont(state));
+function glyphPath(ctx, ch, box, font = activeFont(state)) {
+  const g = traceGlyph(ch, font);
   if (!g.contours.length) return false;
   let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
   for (const c of g.contours) for (let i = 0; i < c.length; i += 2) { x0 = Math.min(x0, c[i]); x1 = Math.max(x1, c[i]); y0 = Math.min(y0, c[i + 1]); y1 = Math.max(y1, c[i + 1]); }
@@ -1782,27 +1750,12 @@ function airDraw(now) {
     c.drawImage(airVideo, AIR.vmap.dx, AIR.vmap.dy, AIR.vmap.dw, AIR.vmap.dh);
     c.restore(); c.filter = "none"; c.globalAlpha = 1;
   }
-  // the letter appearing out of the lines
-  const sh = AIR.shown;
-  if (sh && sh.ch) {
-    // faint preview while you can still change it, solid once it is kept
-    const k = sh.settled ? clamp((now - sh.settled) / 700, 0, 1) : 0, e = 1 - Math.pow(1 - k, 3);
-    const alpha = sh.settled ? lerp(0.22, 1, e) : clamp((now - sh.at) / 400, 0, 1) * 0.22;
-    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-    for (const st of AIR.strokes) for (const i of st) { const d = AIR.dots[i]; x0 = Math.min(x0, d.x); x1 = Math.max(x1, d.x); y0 = Math.min(y0, d.y); y1 = Math.max(y1, d.y); }
-    const h = Math.max(y1 - y0, S * 0.5), w = Math.max(x1 - x0, h * 0.25);
-    const grow = lerp(0.85, 1.08, e);
-    const box = { x: (x0 + x1) / 2 - (w * grow) / 2, y: (y0 + y1) / 2 - (h * grow) / 2, w: w * grow, h: h * grow };
-    if (glyphPath(c, sh.ch, box)) { c.globalAlpha = alpha; c.fillStyle = ink; c.fill("evenodd"); c.globalAlpha = 1; }
-  }
-  // connected lines
-  const kept = sh && sh.settled ? clamp((now - sh.settled) / 700, 0, 1) : 0;
-  const lw = S * 0.032, lineAlpha = lerp(1, 0.3, kept);
+  // connected lines; once a shape becomes a letter they thicken to the font's pen weight
+  const sh = AIR.shown, grow = sh ? 1 - Math.pow(1 - clamp((now - sh.at) / 650, 0, 1), 3) : 0;
+  const lw = S * 0.032;
   c.lineCap = c.lineJoin = "round";
   const line = (pts, col, wdt) => { c.strokeStyle = col; c.lineWidth = wdt; c.beginPath(); pts.forEach((i, n) => { const d = AIR.dots[i]; n ? c.lineTo(d.x, d.y) : c.moveTo(d.x, d.y); }); c.stroke(); };
-  c.globalAlpha = lineAlpha;
-  for (const st of AIR.strokes) line(st, kept ? mute : ink, lerp(lw, lw * 0.4, kept));
-  c.globalAlpha = 1;
+  for (const st of AIR.strokes) line(st, ink, sh ? lerp(lw, sh.pen, grow) : lw);
   if (AIR.cur) {
     line(AIR.cur, ink, lw);
     if (AIR.cursor) { const d = AIR.dots[AIR.cur[AIR.cur.length - 1]]; c.strokeStyle = ink; c.lineWidth = 1.5; c.setLineDash([5, 6]); c.beginPath(); c.moveTo(d.x, d.y); c.lineTo(AIR.cursor.x, AIR.cursor.y); c.stroke(); c.setLineDash([]); }
@@ -1913,25 +1866,19 @@ $("#airClear").addEventListener("click", () => {
   AIR.strokes = []; AIR.cur = null; AIR.shown = null; AIR.seed = Math.random() * 100; airLayout(); updateAirUI();
   airMsg("New dots. Connect them into a letter.");
 });
-$("#airUndoLetter").addEventListener("click", () => { AIR.word = AIR.word.slice(0, -1); updateAirUI(); });
+$("#airUndoLetter").addEventListener("click", () => {
+  const last = AIR.word.slice(-1);
+  if (last && last.charCodeAt(0) >= AIR_FIRST) { delete hand.glyphs[last]; saveHand(); }
+  AIR.word = AIR.word.slice(0, -1);
+  if (AIR.shown && AIR.shown.ch === last) { AIR.shown = null; AIR.strokes = []; }
+  updateAirUI();
+});
 $("#airUse").addEventListener("click", () => {
   if (!AIR.word) return;
-  commit({ ...state, text: AIR.word }, { morph: false }); syncText();
+  commit({ ...state, text: AIR.word, font: "hand" }, { morph: false }); syncText();
   setMode("type");
-  showReply("spelled in the air. drag, describe, or speak to transform it.");
+  showReply("spelled in the air, in your own shapes. drag, describe, or speak to transform it.");
 });
-$("#airKeep").addEventListener("click", () => {
-  const sh = AIR.shown; if (!sh || !sh.ch) return;
-  // fit the dot shape into the pad's cap-height box and save it as a handwriting glyph
-  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
-  for (const st of sh.strokes) for (let i = 0; i < st.length; i += 2) { x0 = Math.min(x0, st[i]); x1 = Math.max(x1, st[i]); y0 = Math.min(y0, st[i + 1]); y1 = Math.max(y1, st[i + 1]); }
-  const k = (PADG.base - PADG.cap) / Math.max(y1 - y0, 1), w = (x1 - x0) * k;
-  hand.glyphs[sh.ch] = { strokes: sh.strokes.map((st) => st.map((v, i) => Math.round((i % 2 ? PADG.cap + (v - y0) * k : 50 - w / 2 + (v - x0) * k) * 10) / 10)), ai: false };
-  saveHand();
-  airMsg(`Saved as your ${sh.ch}. Pick “My handwriting” in the typeface menu to set text with your dot letters.`);
-  if (state.font === "hand") render({ morph: false });
-});
-
 // boot: wait (briefly) for web fonts so outlines use the right faces
 (async function boot() {
   $("#keyDot").classList.toggle("on", connected());
