@@ -212,6 +212,14 @@ form.prompt { display: flex; align-items: stretch; gap: 0; padding: 8px 18px 14p
   font-size: clamp(18px, 2.4vw, 30px); font-weight: 500; letter-spacing: -.02em; padding: 8px 0;
 }
 #promptInput::placeholder { color: var(--faint); }
+.mic {
+  border: 2px solid var(--ink); background: var(--paper); color: var(--ink);
+  padding: 0 18px; margin-left: 14px; cursor: pointer; display: flex; align-items: center; gap: 8px;
+  font-family: var(--mono); font-size: 12px; letter-spacing: .14em; text-transform: uppercase;
+}
+.mic .dot { width: 9px; height: 9px; }
+.mic.on { background: var(--ink); color: var(--paper); }
+.mic.on .dot { background: var(--paper); border-color: var(--paper); animation: breathe 1s ease-in-out infinite; }
 #applyBtn {
   border: 2px solid var(--ink); background: var(--ink); color: var(--paper);
   padding: 0 28px; margin-left: 14px; cursor: pointer;
@@ -260,6 +268,8 @@ a { color: inherit; }
   .tool { padding: 0 10px; }
   .tool span.t, .tool kbd { display: none; }
   #applyBtn { padding: 0 16px; }
+  .mic { padding: 0 12px; margin-left: 10px; }
+  .mic .t { display: none; }
   form.prompt, .examples, .status { padding-left: 16px; padding-right: 16px; }
   .meta.tr { display: none; }
 }
@@ -328,6 +338,7 @@ a { color: inherit; }
   <div class="status"><span class="label" id="statusLabel">Ready</span><span id="reply"></span></div>
   <form class="prompt" id="promptForm" autocomplete="off">
     <input id="promptInput" placeholder="What do you want to do with your type?" aria-label="Instruction">
+    <button id="micBtn" class="mic" type="button" aria-pressed="false" title="Speak your instructions"><span class="dot"></span> <span class="t">Voice</span></button>
     <button id="applyBtn" type="submit">Apply</button>
   </form>
   <div class="examples" id="examples"><span class="label">Try →</span></div>
@@ -1218,14 +1229,88 @@ async function applyInstruction(prompt) {
     }
   } catch (e) {
     showReply(e.message, true);
-  } finally { setBusy(false); }
+  } finally {
+    setBusy(false);
+    if (pendingVoice) { const t = pendingVoice; pendingVoice = null; handleSpoken(t); }
+  }
 }
 function setBusy(on, label) {
   busy = on; document.body.classList.toggle("busy", on);
   $("#applyBtn").disabled = on;
-  $("#statusLabel").textContent = on ? label + "…" : "Ready";
+  $("#statusLabel").textContent = on ? label + "…" : idleLabel();
 }
 function showReply(text, err = false) { const r = $("#reply"); r.textContent = text; r.classList.toggle("err", err); }
+
+// ---------- voice: speak instructions ----------
+// Browsers with speech recognition listen directly. Where the microphone is blocked (inside Claude,
+// or browsers without recognition), "hands-free" mode applies whatever the OS dictation types once you pause.
+const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+const micBtn = $("#micBtn");
+let voice = null, pendingVoice = null, dictTimer = 0;
+const VOICE_COMMANDS = {
+  "undo": () => undo(), "redo": () => redo(), "reset": () => reset(), "start over": () => reset(),
+  "export": () => exportPNG(), "save": () => exportPNG(), "stop listening": () => stopVoice(),
+};
+const idleLabel = () => (!voice ? "Ready" : voice.mode === "speech" ? "Listening" : "Hands-free");
+function setVoiceUI() {
+  if (!busy) $("#statusLabel").textContent = idleLabel();
+  micBtn.classList.toggle("on", !!voice);
+  micBtn.setAttribute("aria-pressed", String(!!voice));
+  micBtn.querySelector(".t").textContent = !voice ? "Voice" : voice.mode === "speech" ? "Listening" : "Hands-free";
+  micBtn.title = !voice ? "Speak your instructions" : "Stop listening";
+}
+function handleSpoken(text) {
+  const key = text.toLowerCase().replace(/[.!?,]/g, "").trim();
+  if (VOICE_COMMANDS[key]) { $("#promptInput").value = ""; VOICE_COMMANDS[key](); return; }
+  if (busy) { pendingVoice = text; showReply("next up: “" + text + "”"); return; }
+  $("#promptInput").value = text;
+  applyInstruction(text);
+}
+function startSpeech() {
+  const rec = new SpeechRec();
+  rec.continuous = true; rec.interimResults = true; rec.lang = navigator.language || "en-US";
+  voice = { mode: "speech", rec }; setVoiceUI();
+  rec.onresult = (e) => {
+    let interim = "", final = "";
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      const r = e.results[i];
+      if (r.isFinal) final += r[0].transcript; else interim += r[0].transcript;
+    }
+    if (interim.trim() && !busy) $("#promptInput").value = interim.trim();
+    if (final.trim()) handleSpoken(final.trim());
+  };
+  rec.onerror = (e) => {
+    if (["not-allowed", "service-not-allowed", "audio-capture", "network"].includes(e.error) && voice && voice.rec === rec) {
+      voice = null;
+      startDictation(e.error === "audio-capture" ? "No microphone was found." : "The microphone isn't available on this page.");
+    }
+  };
+  // recognition ends on long silences; keep listening until the button is pressed again
+  rec.onend = () => { if (voice && voice.rec === rec) { try { rec.start(); } catch {} } };
+  try { rec.start(); showReply("listening. say what should happen to your type, or “stop listening”."); }
+  catch { voice = null; startDictation("The microphone isn't available on this page."); }
+}
+function startDictation(reason) {
+  voice = { mode: "dictation" }; setVoiceUI();
+  const mac = /Mac|iPhone|iPad/.test(navigator.userAgent);
+  showReply(`${reason} Hands-free mode is on: start your computer's dictation (${mac ? "press fn twice, or the microphone key" : "press Windows + H"}) and speak. Each sentence is applied when you pause.`);
+  const pi = $("#promptInput"); pi.value = ""; pi.focus();
+}
+function stopVoice() {
+  const v = voice; voice = null; clearTimeout(dictTimer);
+  if (v && v.rec) { try { v.rec.stop(); } catch {} }
+  setVoiceUI(); showReply("voice off.");
+}
+micBtn.addEventListener("click", () => {
+  if (voice) stopVoice();
+  else if (SpeechRec) startSpeech();
+  else startDictation("This browser can't listen by itself.");
+});
+$("#promptInput").addEventListener("input", () => {
+  if (!voice || voice.mode !== "dictation") return;
+  clearTimeout(dictTimer);
+  dictTimer = setTimeout(() => { const v = $("#promptInput").value.trim(); if (v) handleSpoken(v); }, 1600);
+});
 
 // ---------- export ----------
 async function exportPNG() {
