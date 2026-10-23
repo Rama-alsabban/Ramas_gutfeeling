@@ -21,15 +21,15 @@ python3 src/compose.py && python3 src/trace.py
 
 ## Compositions with shapes
 
-`compositions/` puts the leopard with decorative shapes drawn in the same ink style: cream fill, matching outline
-weight and engraving-style hatching. Each file has `behind`, `leopard` and `front` groups, so a shape can be moved
-in front of or behind the leopard. A solid silhouette (`src/silhouette.py`) stops shapes behind it from showing through.
+`compositions/` sets the leopard with decorative elements drawn in the same engraving technique. The approach:
+use a few elements at a confident scale, make them interlock with the figure (behind it, in front of it, or broken
+by it), and build tone from engraved line work rather than flat outlines. Each file has `behind`, `leopard` and
+`front` groups. A solid silhouette (`src/silhouette.py`) stops anything behind the leopard from showing through.
 
 ![Compositions](compositions/preview.png)
 
-- `a-sparkles.svg`: thin-rayed sparkle stars, like the reference
-- `b-moon-and-stars.svg`: crescent moon, twinkles and "z z Z" (fits *Resting*)
-- `c-sunburst.svg`: a ray halo behind the leopard
-- `d-hearts-and-bolts.svg`: tattoo-flash hearts and lightning bolts
+- `a-engraved-stars.svg`: two large faceted stars, one behind the back and one crossing the cushion, as in the reference
+- `b-night-medallion.svg`: an engraved night-sky disc with a knocked-out moon and stars; the leopard breaks its edge
+- `c-arched-niche.svg`: an arched niche with a fine ray burst; tassels and paws break out of the frame
 
 Shapes and positions are set in `src/compositions.py` (`python3 src/compositions.py`).
