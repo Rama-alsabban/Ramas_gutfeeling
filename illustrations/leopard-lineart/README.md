@@ -18,3 +18,18 @@ cd illustrations/leopard-lineart
 python3 src/compose.py && python3 src/trace.py
 ```
 `src/simplify.py` sets how much detail is removed (`LEVELS`). `src/compose.py` decides which level each region uses.
+
+## Compositions with shapes
+
+`compositions/` puts the leopard with decorative shapes drawn in the same ink style: cream fill, matching outline
+weight and engraving-style hatching. Each file has `behind`, `leopard` and `front` groups, so a shape can be moved
+in front of or behind the leopard. A solid silhouette (`src/silhouette.py`) stops shapes behind it from showing through.
+
+![Compositions](compositions/preview.png)
+
+- `a-sparkles.svg`: thin-rayed sparkle stars, like the reference
+- `b-moon-and-stars.svg`: crescent moon, twinkles and "z z Z" (fits *Resting*)
+- `c-sunburst.svg`: a ray halo behind the leopard
+- `d-hearts-and-bolts.svg`: tattoo-flash hearts and lightning bolts
+
+Shapes and positions are set in `src/compositions.py` (`python3 src/compositions.py`).
