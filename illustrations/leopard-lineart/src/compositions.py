@@ -6,6 +6,7 @@ import json, math, re, os
 INK, PAPER = '#2c2b22', '#f1ebdf'
 art = open('leopard-lineart-transparent.svg').read()
 INK_G = re.search(r'<g id="ink".*?</g>', art, re.S).group()
+STARRY_G = open('src/ink_stars_group.svgfrag').read()
 SIL = f'<g id="silhouette" fill="{PAPER}" transform="scale(0.5)">' + ''.join(json.load(open('src/silhouette.json'))) + '</g>'
 
 def stroke(w, join='round'): return f'fill="none" stroke="{INK}" stroke-width="{w}" stroke-linecap="round" stroke-linejoin="{join}"'
@@ -55,10 +56,10 @@ def ground(cx, y, half):
     """A quiet double rule that seats the cushions, the way a vignette sits on a printed page."""
     return f'<path d="M{cx-half} {y}H{cx+half}" {stroke(2.2)}/><path d="M{cx-half*.72:.0f} {y+9}H{cx+half*.72:.0f}" {stroke(1.2)}/>'
 
-def doc(title, defs='', behind='', front=''):
+def doc(title, defs='', behind='', front='', ink=None):
     return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1536 1024" width="1536" height="1024">\n<title>{title}</title>\n'
             f'<defs>{defs}</defs>\n<rect width="100%" height="100%" fill="{PAPER}"/>\n<g id="behind">{behind}</g>\n'
-            f'<g id="leopard">{SIL}{INK_G}</g>\n<g id="front">{front}</g>\n</svg>\n')
+            f'<g id="leopard">{SIL}{ink or INK_G}</g>\n<g id="front">{front}</g>\n</svg>\n')
 
 C = {}
 
@@ -76,6 +77,8 @@ sky = (f'<clipPath id="disc"><circle cx="{cx}" cy="{cy}" r="{r}"/></clipPath>'
        + ''.join(twinkle(x, y, s, knock=True) for x, y, s in [(560, 150, 20), (690, 105, 11), (480, 250, 9), (830, 205, 13), (1130, 330, 10), (395, 380, 12)]) +
        '</g>')
 C['b-night-medallion'] = doc('Leopard before a night-sky medallion',
+    behind=sky + f'<circle cx="{cx}" cy="{cy}" r="{r}" {stroke(3)}/><circle cx="{cx}" cy="{cy}" r="{r+12}" {stroke(1.4)}/>' + ground(775, 848, 700))
+C['d-starry-medallion'] = doc('Starry leopard before a night-sky medallion', ink=STARRY_G,
     behind=sky + f'<circle cx="{cx}" cy="{cy}" r="{r}" {stroke(3)}/><circle cx="{cx}" cy="{cy}" r="{r+12}" {stroke(1.4)}/>' + ground(775, 848, 700))
 
 # C - arched niche with a fine ray burst; tassels and paws break out of the frame

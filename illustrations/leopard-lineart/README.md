@@ -19,6 +19,20 @@ python3 src/compose.py && python3 src/trace.py
 ```
 `src/simplify.py` sets how much detail is removed (`LEVELS`). `src/compose.py` decides which level each region uses.
 
+## Starry leopard (minimal)
+
+`leopard-stars.svg` (and `-transparent`) strips the leopard down to its outlines, face, inner ear and paw pads,
+and replaces the rosettes with small four-point stars, placed roughly where the spots were.
+`compositions/d-starry-medallion.svg` sets it in front of the night-sky medallion.
+
+![Starry leopard](starry-preview.png)
+
+How it works (`src/starry.py`): the outlines are one connected shape with rosettes hanging off it. It is reduced to
+a centreline, short side branches (rosettes and fur flicks) are pruned, and the original ink is kept only along the
+surviving lines. On the back, where rosettes merged into the contour, the contour is redrawn from the silhouette.
+Regenerate with `python3 src/starry.py && python3 src/trace_starry.py && python3 src/compositions.py`.
+(needs `pip install scikit-image` as well)
+
 ## Compositions with shapes
 
 `compositions/` sets the leopard with decorative elements drawn in the same engraving technique. The approach:

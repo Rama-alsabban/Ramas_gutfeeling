@@ -1,3 +1,5 @@
 src/ink_*.png
 __pycache__/
 src/_sil.png
+src/star_spots.json
+src/ink_stars_group.svgfrag
