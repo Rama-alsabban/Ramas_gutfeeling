@@ -1,6 +1,6 @@
 # Leopard: bold outline (vector)
 
-A vector of the bold-outline region map: the minimal leopard line art thickened evenly, without the debug colours.
+A vector of the bold-outline region map: the minimal leopard line art thickened evenly, without the debug colours. The eye is redrawn as a soft closed curve so the leopard looks relaxed and content.
 
 ![Bold outline (top) and the regions filled with test colours (bottom)](preview.png)
 

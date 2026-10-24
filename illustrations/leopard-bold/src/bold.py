@@ -7,6 +7,17 @@ src = 255 - cv2.imread('../leopard-lineart/src/ink_minimal_outline.png', cv2.IMR
 fat = cv2.dilate(src, disk(4))                                   # same thickening as the region map
 fat = cv2.morphologyEx(fat, cv2.MORPH_OPEN, disk(1))
 
+# relaxed, satisfied eye: replace the narrowed eye wedge with a soft closed-eye curve
+def bez(p0, p1, p2, p3, n=60):
+    u = np.linspace(0, 1, n)[:, None]; p0, p1, p2, p3 = map(np.array, (p0, p1, p2, p3))
+    return (1 - u) ** 3 * p0 + 3 * (1 - u) ** 2 * u * p1 + 3 * (1 - u) * u ** 2 * p2 + u ** 3 * p3
+fat[2 * 290:2 * 336, 2 * 436:2 * 526] = 0
+lid = bez((444, 309), (462, 326), (494, 327), (512, 307))                       # closed lid, bowing down
+flick = bez((512, 307), (515, 303), (518, 300), (521, 298), 12)                  # outer corner lifts gently
+for curve, w in [(lid, 17), (flick, 13)]:
+    cv2.polylines(fat, [np.round(curve * 2).astype(np.int32)], False, 255, w, cv2.LINE_AA)
+fat = np.where(fat > 127, 255, 0).astype(np.uint8)
+
 def trace(mask, speckle):
     cv2.imwrite('src/_t.png', np.where(mask > 0, 0, 255).astype(np.uint8))
     vtracer.convert_image_to_svg_py('src/_t.png', 'src/_t.svg', colormode='binary', mode='spline', filter_speckle=speckle,
