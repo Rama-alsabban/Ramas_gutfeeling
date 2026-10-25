@@ -92,6 +92,22 @@ for i in range(1, n):
     regions.append((a, m, fillc))
 regions.sort(key=lambda r: -r[0])  # big first, small on top
 
+# tiny openings in the line art (e.g. thin eye highlights) that gap-closing
+# swallowed: give each its own small shape in its original colour
+covered = np.zeros_like(lines)
+for _, m, _ in regions:
+    covered |= m
+leftover = ((1 - lines) & (1 - covered)).astype(np.uint8)
+n2, lab2, st2, _ = cv2.connectedComponentsWithStats(leftover, connectivity=4)
+for i in range(1, n2):
+    if st2[i, 4] < 3 * S * S:
+        continue
+    fillc = np.median(col[lab2 == i], axis=0).astype(int)
+    if np.abs(fillc - bg_bgr.astype(int)).sum() < 30:
+        continue  # it's just background showing between lines
+    m = cv2.dilate((lab2 == i).astype(np.uint8), disc(2))
+    regions.append((st2[i, 4], m, fillc))
+
 parts = []
 hexc = lambda c: "#%02X%02X%02X" % (c[2], c[1], c[0])
 for k, (a, m, fillc) in enumerate(regions):
