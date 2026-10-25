@@ -7,6 +7,11 @@ CLOSE_R = 4 * S // 2 + 2  # gap-closing radius (in upscaled px)
 
 g = cv2.imread(src, 0)
 H0, W0 = g.shape
+# Hand-added strokes (original-pixel coords): close the lower pillow's right
+# end between the front leg and the tassel, continuing its bottom edge.
+EXTRA_STROKES = [((879, 653), (907, 654), 5)]
+for p0, p1, w in EXTRA_STROKES:
+    cv2.line(g, p0, p1, 40, w, cv2.LINE_AA)
 g = cv2.resize(g, (W0 * S, H0 * S), interpolation=cv2.INTER_CUBIC)
 g = cv2.GaussianBlur(g, (0, 0), S * 0.6)
 lines = (g < 150).astype(np.uint8)
