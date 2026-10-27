@@ -1,0 +1,488 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+</head>
+<body>
+<title>Practice Concept Map</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,700;1,6..72,400;1,6..72,700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a polar field. Two axes made of the concepts themselves, three rings from "why" to "what",
+   the map on the left, a reading panel on the right, the rules and the index underneath. */
+:root{
+  --paper:#f2f3f7;      /* cool newsprint */
+  --sheet:#fbfbfd;
+  --ink:#1c1f3d;        /* indigo ink */
+  --muted:#5f6386;
+  --rule:#c6c9dc;
+  --blue:#2b5bd7;       /* riso blue: "informs" lines */
+  --pink:#ec3f7f;       /* riso fluorescent pink: contrast lines */
+  --blend:multiply;
+  --f-concept:'Newsreader', 'Iowan Old Style', Georgia, serif;
+  --f-label:'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#14152a; --sheet:#1b1d36; --ink:#e7e8f6; --muted:#9a9dc2; --rule:#3a3d63;
+    --blue:#7d9cff; --pink:#ff6fa3; --blend:normal; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#14152a; --sheet:#1b1d36; --ink:#e7e8f6; --muted:#9a9dc2; --rule:#3a3d63;
+  --blue:#7d9cff; --pink:#ff6fa3; --blend:normal; color-scheme:dark;
+}
+
+body{background:var(--paper);color:var(--ink);font-family:var(--f-concept);font-size:17px;line-height:1.5}
+.wrap{max-width:1320px;margin:0 auto;padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px));padding-block:32px 64px;display:grid;gap:40px}
+
+/* typographic system: this is the whole point */
+.common{font-style:italic;font-weight:400}
+.mine{font-style:normal;font-weight:700}
+.both{font-style:italic;font-weight:700}
+
+.eyebrow{font-family:var(--f-label);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+header{display:grid;gap:12px;max-width:68ch}
+h1{font-size:clamp(34px,5vw,56px);line-height:1.02;margin:0;font-weight:400;letter-spacing:-.01em;text-wrap:balance}
+h1 em{font-weight:400}
+h1 b{font-weight:700}
+.lede{margin:0;font-size:19px;color:var(--ink);text-wrap:pretty}
+h2{font-size:28px;font-weight:400;margin:0;text-wrap:balance}
+
+/* map + panel */
+.stage{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:28px;align-items:start}
+@media (max-width:980px){.stage{grid-template-columns:minmax(0,1fr)}}
+.mapbox{background:var(--sheet);border:1px solid var(--rule);overflow-x:auto;-webkit-overflow-scrolling:touch}
+#map{display:block;width:100%;min-width:680px;height:auto}
+.scroll-hint{display:none;font-family:var(--f-label);font-size:12px;color:var(--muted);padding:8px 12px;border-top:1px solid var(--rule)}
+@media (max-width:720px){.scroll-hint{display:block}}
+
+aside{display:grid;gap:22px;position:sticky;top:calc(env(safe-area-inset-top, 0px) + 16px)}
+@media (max-width:980px){aside{position:static}}
+.panel{border-top:1px solid var(--ink);padding-top:12px;display:grid;gap:10px}
+.key-row{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;align-items:baseline}
+.key-row .sample{font-size:22px}
+.key-row .what{font-family:var(--f-label);font-size:12.5px;color:var(--muted)}
+
+.seg{display:flex;border:1px solid var(--ink)}
+.seg button{flex:1;font:500 12px/1 var(--f-label);letter-spacing:.06em;text-transform:uppercase;padding:10px 6px;background:transparent;color:var(--ink);border:0;border-left:1px solid var(--ink);cursor:pointer}
+.seg button:first-child{border-left:0}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+.seg button:focus-visible,.chip:focus-visible{outline:2px solid var(--pink);outline-offset:2px}
+
+#detail h3{margin:0;font-size:32px;line-height:1.1}
+#detail .where{font-family:var(--f-label);font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+#detail p{margin:0}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-family:var(--f-concept);font-size:15px;padding:3px 10px 4px;border:1px solid var(--rule);background:transparent;color:var(--ink);cursor:pointer;display:inline-flex;gap:6px;align-items:baseline}
+.chip .rel{font:400 10.5px var(--f-label);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.chip.contrast{border-color:var(--pink)}
+.chip.contrast .rel{color:var(--pink)}
+
+.lines{display:grid;gap:8px}
+.lines div{display:grid;grid-template-columns:44px 1fr;gap:12px;align-items:center;font-size:15px}
+.lines svg{width:44px;height:10px;overflow:visible}
+
+/* svg */
+.ring{fill:none;stroke:var(--rule);stroke-width:1}
+.axis{stroke:var(--ink);stroke-width:1.2}
+.axis-head{fill:var(--ink)}
+.quad-t{font-family:var(--f-label);font-size:13px;letter-spacing:.12em;fill:var(--ink)}
+.quad-s{font-family:var(--f-concept);font-size:15px;fill:var(--muted);font-style:italic}
+.ring-t{font-family:var(--f-label);font-size:11px;letter-spacing:.14em;fill:var(--muted)}
+.edge{fill:none;stroke-width:1.4;transition:opacity .2s}
+.edge.informs{stroke:var(--blue)}
+.edge.contrast{stroke:var(--pink);stroke-dasharray:6 6}
+.edge.shapes{stroke:var(--ink);stroke-dasharray:1.5 4;stroke-linecap:round;opacity:.6}
+.node{cursor:pointer;transition:opacity .2s}
+.node text{fill:var(--ink);font-family:var(--f-concept);font-size:19px;paint-order:stroke;stroke:var(--sheet);stroke-width:6px;stroke-linejoin:round}
+.node.pole text{font-size:21px}
+.node .dot{fill:var(--ink)}
+.node .hit{fill:transparent}
+.node:focus{outline:none}
+.node:focus-visible .dot,.node.sel .dot{fill:var(--pink)}
+.node.sel:not(.identity) text{text-decoration:underline;text-decoration-color:var(--pink);text-underline-offset:4px}
+.id-a{fill:var(--blue);mix-blend-mode:var(--blend);opacity:.85}
+.id-b{fill:var(--pink);mix-blend-mode:var(--blend);opacity:.85}
+.node.identity text{font-size:30px;stroke:none;fill:var(--paper)}
+:root .node.identity text{fill:#fff}
+.axis-word text{font-size:22px}
+
+#map.focus .edge:not(.on){opacity:.08}
+#map.focus .node:not(.on){opacity:.22}
+#map[data-filter="common"] .node.mine,#map[data-filter="mine"] .node.common{opacity:.18}
+#map[data-filter="common"] .edge,#map[data-filter="mine"] .edge{opacity:.15}
+
+/* rules + findings */
+.rules{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:24px 28px}
+.rule{border-top:1px solid var(--ink);padding-top:10px;display:grid;gap:6px;align-content:start}
+.rule p{margin:0;font-size:16px}
+.section{display:grid;gap:18px}
+.findings{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:24px 28px}
+.finding{display:grid;gap:6px;align-content:start}
+.finding .big{font-size:40px;line-height:1;font-variant-numeric:tabular-nums}
+.finding p{margin:0;font-size:16px;max-width:60ch}
+
+.tablebox{overflow-x:auto;border-top:1px solid var(--ink)}
+table{width:100%;border-collapse:collapse;min-width:720px}
+th{font:500 11.5px var(--f-label);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);text-align:left;padding:10px 12px 8px 0;border-bottom:1px solid var(--rule)}
+td{padding:10px 12px 10px 0;border-bottom:1px solid var(--rule);vertical-align:top;font-size:15.5px}
+td.name{font-size:18px;white-space:nowrap}
+td.meta{font-family:var(--f-label);font-size:12px;color:var(--muted);white-space:nowrap}
+tr.row{cursor:pointer}
+tr.row:hover td{background:color-mix(in srgb, var(--blue) 7%, transparent)}
+footer{font-family:var(--f-label);font-size:12px;color:var(--muted)}
+
+@media (prefers-reduced-motion: reduce){.edge,.node{transition:none}}
+</style>
+
+<div class="wrap">
+  <header>
+    <span class="eyebrow">Practice map · 26 concepts · 2 lists</span>
+    <h1><b>Identity</b> <em>at the origin</em></h1>
+    <p class="lede">One field holds both lists. Its two axes are built from the concepts themselves: <span class="common">Time</span> runs left to right, from <span class="mine">Heritage</span> to <span class="mine">Contemporary perspective</span>; scale runs bottom to top, from <span class="mine">Personal</span> to <span class="common">Socio-political approach</span>. Every other concept is placed by those two coordinates and by how far it sits from the centre.</p>
+  </header>
+
+  <div class="stage">
+    <div>
+      <div class="mapbox">
+        <svg id="map" viewBox="0 0 1240 1120" role="group" aria-label="Concept map of 26 concepts"></svg>
+      </div>
+      <div class="scroll-hint">Scroll sideways to see the whole map.</div>
+    </div>
+
+    <aside>
+      <div class="panel">
+        <span class="eyebrow">Type key</span>
+        <div class="key-row"><span class="sample common">Italic</span><span class="what">Common list · 13</span></div>
+        <div class="key-row"><span class="sample mine">Bold</span><span class="what">My list · 13</span></div>
+        <div class="key-row"><span class="sample both">Bold italic</span><span class="what">On both lists · Identity only</span></div>
+      </div>
+
+      <div class="panel">
+        <span class="eyebrow">Show</span>
+        <div class="seg" role="group" aria-label="Filter by list">
+          <button type="button" id="f-all" data-f="all" aria-pressed="true">Both</button>
+          <button type="button" id="f-common" data-f="common" aria-pressed="false">Common</button>
+          <button type="button" id="f-mine" data-f="mine" aria-pressed="false">Mine</button>
+        </div>
+      </div>
+
+      <div class="panel" id="detail" aria-live="polite"></div>
+
+      <div class="panel">
+        <span class="eyebrow">Lines</span>
+        <div class="lines">
+          <div><svg viewBox="0 0 44 10"><line x1="0" y1="5" x2="44" y2="5" class="edge informs"/></svg><span>Informs: a lens feeds a method, a method makes a form</span></div>
+          <div><svg viewBox="0 0 44 10"><line x1="0" y1="5" x2="44" y2="5" class="edge contrast"/></svg><span><span class="common">Contrast</span>: opposites, placed directly across the centre</span></div>
+          <div><svg viewBox="0 0 44 10"><line x1="0" y1="5" x2="44" y2="5" class="edge shapes"/></svg><span>Shapes <span class="both">Identity</span>: the four lenses closest to it</span></div>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <section class="section">
+    <span class="eyebrow">How a position is decided</span>
+    <div class="rules">
+      <div class="rule"><span class="eyebrow">Centre</span><p><span class="both">Identity</span> is the only word on both lists, so it is the origin. Both axes and every contrast line pass through it.</p></div>
+      <div class="rule"><span class="eyebrow">Left ↔ right · <span class="common" style="text-transform:none;letter-spacing:0;font-family:var(--f-concept);font-size:14px">Time</span></span><p>Left looks back to what was inherited. Right works in the present. <span class="common">Time</span> is drawn as the axis itself.</p></div>
+      <div class="rule"><span class="eyebrow">Down ↔ up · scale</span><p>Down is one life, <span class="mine">Personal</span>. Up is a society, <span class="common">Socio-political approach</span>. The higher a concept sits, the more it faces a public.</p></div>
+      <div class="rule"><span class="eyebrow">Distance from centre</span><p>Three rings move from why to what. Lens: how the work sees. Method: how it is made. Form: what the audience meets.</p></div>
+      <div class="rule"><span class="eyebrow">On an axis</span><p>A concept on an axis bridges two halves. <span class="common">Contrast</span>, <span class="mine">Bilingual</span>, <span class="mine">Visual narratives</span> and <span class="common">Interdisciplinary</span> sit there.</p></div>
+      <div class="rule"><span class="eyebrow">Opposite sides</span><p>Pairs that pull against each other sit diametrically, so the line between them crosses <span class="both">Identity</span>. <span class="common">Contrast</span> is the rule that draws them.</p></div>
+    </div>
+  </section>
+
+  <section class="section">
+    <span class="eyebrow">What the map shows</span>
+    <div class="findings" id="findings"></div>
+  </section>
+
+  <section class="section">
+    <span class="eyebrow">Index · select a row to find it on the map</span>
+    <div class="tablebox"><table id="index"><thead><tr><th>Concept</th><th>List</th><th>Quadrant</th><th>Ring</th><th>Why it sits there</th></tr></thead><tbody></tbody></table></div>
+  </section>
+
+  <footer>Concepts are placed by rule, not by eye. Angles and rings are listed in the index.</footer>
+</div>
+
+<script>
+(() => {
+  const SVGNS = 'http://www.w3.org/2000/svg';
+  const CX = 620, CY = 560;
+  const RING = {1:150, 2:285, 3:410, pole:470};
+  const RING_NAME = {0:'Origin', 1:'Lens', 2:'Method', 3:'Form', pole:'Axis end', axis:'Axis'};
+
+  // ring: 0 centre, 1 lens, 2 method, 3 form, 'pole' axis end, 'axis' the axis itself
+  // la: label side (r, l, t, b)
+  const N = [
+    {id:'identity', t:['Identity'], list:'both', ring:0, a:0,
+      why:'The only word on both lists, so it takes the origin. Both axes pass through it, and so does every contrast line: each tension in the practice is held at the level of who you are. The four lenses around it are what identity is built from: shared memory, lived culture, reflection and making.'},
+    {id:'time', t:['Time'], list:'common', ring:'axis', a:180, r:228, la:'t',
+      why:'Time is not a point on the map. It is the horizontal axis. Everything left of centre looks back to what was inherited; everything right of centre works in the present. A concept’s left-right position is its relationship to time.'},
+    {id:'heritage', t:['Heritage'], list:'mine', ring:'pole', a:180, la:'l',
+      why:'The past end of the Time axis. The whole left half of the map draws from it, starting with collective memory.'},
+    {id:'contemporary', t:['Contemporary','perspective'], list:'mine', ring:'pole', a:0, la:'r',
+      why:'The present end of the Time axis: heritage read again from now. It feeds the right half, starting with interdisciplinary work.'},
+    {id:'personal', t:['Personal'], list:'mine', ring:'pole', a:270, la:'b',
+      why:'The bottom end of the scale axis: the work as it relates to one life. Concepts in the lower half come from inside the practice. It leads to reflection and to the stories the work tells.'},
+    {id:'socio', t:['Socio-political approach'], list:'common', ring:'pole', a:90, la:'t',
+      why:'The top end of the scale axis: the work as it speaks to a society. Concepts in the upper half face outward. Dissidence is the method that reaches it.'},
+
+    // ring 1 · lens
+    {id:'collective', t:['Collective History /','memory'], list:'mine', ring:1, a:135, la:'t',
+      why:'A lens on the shared past. It sits close to the centre because it shapes identity directly, and it drives the archive beside it.'},
+    {id:'nuance', t:['Cultural /','social nuance'], list:'mine', ring:1, a:45, la:'l',
+      why:'A lens on the collective present: reading the small codes of a culture as it is lived now. Humour and dissent depend on it, and bilingual work is how it survives translation.'},
+    {id:'reflectivity', t:['Reflectivity'], list:'common', ring:1, a:230, la:'r',
+      why:'A lens turned inward, toward personal memory. It feeds the slow, hand-led method below it. Directly across the map sits Dissidence: looking in against speaking out.'},
+    {id:'process', t:['Process'], list:'common', ring:1, a:310, la:'b',
+      why:'Treating the making as the point. A personal, present-tense lens that opens straight onto experimentation.'},
+
+    // ring 2 · method
+    {id:'contrast', t:['Contrast'], list:'common', ring:2, a:90, la:'l',
+      why:'A method: old beside new, one script beside another. It sits on the axis because it belongs to neither past nor present alone. On this map it is also drawn. Every dashed line is a contrast, and the two axes are contrasts too.'},
+    {id:'dissidence', t:['Dissidence'], list:'common', ring:2, a:50, la:'r',
+      why:'Speaking against, aimed at the collective present. Fed by cultural nuance and carried by humour, it leads out to the socio-political pole. Opposite: Reflectivity.'},
+    {id:'humour', t:['Humour'], list:'common', ring:2, a:15, la:'r',
+      why:'A way of getting difficult things said. It only works with cultural nuance behind it, and it often carries dissent.'},
+    {id:'interdisciplinary', t:['Interdisciplinary'], list:'common', ring:2, a:0, la:'t',
+      why:'Working across fields. It sits on the present end of the axis, between personal and collective, because it draws on both. It is what makes immersive work possible.'},
+    {id:'flexibility', t:['Flexibility'], list:'common', ring:2, a:345, la:'r',
+      why:'Letting the method change as it goes. Directly across sits Archive: the fluid against the fixed record.'},
+    {id:'experimentation', t:['Experimentation'], list:'common', ring:2, a:325, la:'r',
+      why:'Trying things before knowing the outcome. Fed by process and flexibility, it produces interactive forms. Opposite: Cultural preservation, which keeps things as they were.'},
+    {id:'printing', t:['Printing','methodology'], list:'mine', ring:2, a:210, la:'l',
+      why:'A method rooted in craft tradition and in the hand. Fed by reflection, it produces the two forms beside it: tangible objects and simple, constraint-led images.'},
+    {id:'archive', t:['Archive'], list:'mine', ring:2, a:165, la:'l',
+      why:'Collecting and ordering the shared past. It turns collective memory into material and leads to cultural preservation. Opposite: Flexibility.'},
+
+    // ring 3 · form
+    {id:'bilingual', t:['Bilingual'], list:'mine', ring:3, a:90, la:'l',
+      why:'A form the audience reads: two languages on one surface. It sits on the axis because one language carries heritage and the other the present, and it stands directly above Contrast, the method behind it.'},
+    {id:'immersive', t:['Immersiveness'], list:'common', ring:3, a:22, la:'r',
+      why:'A form that surrounds a public, so it sits high on the present side. It is built through interdisciplinary work. Opposite: Simplicity.'},
+    {id:'preservation', t:['Cultural','preservation'], list:'mine', ring:3, a:145, la:'l',
+      why:'An outcome: what the work does for the shared past. It sits furthest out in the inherited quadrant. Opposite: Experimentation.'},
+    {id:'simplicity', t:['Simplicity'], list:'common', ring:3, a:200, la:'l',
+      why:'A formal quality that follows from printing’s limits: few colours, clear shapes. Opposite: Immersiveness, the minimal against the enveloping.'},
+    {id:'tangibility', t:['Tangibility *'], list:'mine', ring:3, a:235, la:'l',
+      why:'The physical form of the work: paper, ink, an object in the hand. It comes out of printing methodology. The asterisk is kept from your list.'},
+    {id:'narratives', t:['Visual narratives'], list:'mine', ring:3, a:270, la:'r',
+      why:'The story the audience follows. It sits on the personal axis, between past and present, because a narrative moves through time. Tangible and interactive forms both carry it.'},
+    {id:'interactive', t:['Interactive'], list:'mine', ring:3, a:305, la:'r',
+      why:'A form that asks the viewer to act. The exchange is one-to-one, so it sits in the personal half, on the present side. Experimentation produces it, and it carries narratives.'},
+  ];
+
+  const E = [
+    // informs
+    ['heritage','collective','informs'],['collective','archive','informs'],['archive','preservation','informs'],
+    ['nuance','dissidence','informs'],['nuance','humour','informs'],['humour','dissidence','informs'],
+    ['dissidence','socio','informs'],['nuance','bilingual','informs'],['contrast','bilingual','informs'],
+    ['contemporary','interdisciplinary','informs'],['interdisciplinary','immersive','informs'],
+    ['personal','reflectivity','informs'],['reflectivity','printing','informs'],['printing','tangibility','informs'],
+    ['printing','simplicity','informs'],['process','experimentation','informs'],['flexibility','experimentation','informs'],
+    ['experimentation','interactive','informs'],['tangibility','narratives','informs'],['interactive','narratives','informs'],
+    ['personal','narratives','informs'],
+    // shapes identity
+    ['identity','collective','shapes'],['identity','nuance','shapes'],['identity','reflectivity','shapes'],['identity','process','shapes'],
+    // contrast: diametric pairs
+    ['preservation','experimentation','contrast'],['archive','flexibility','contrast'],
+    ['reflectivity','dissidence','contrast'],['simplicity','immersive','contrast'],
+  ];
+
+  const byId = Object.fromEntries(N.map(n => [n.id, n]));
+  const rad = d => d * Math.PI / 180;
+  N.forEach(n => {
+    const r = n.ring === 0 ? 0 : (n.r ?? RING[n.ring]);
+    n.x = CX + r * Math.cos(rad(n.a));
+    n.y = CY - r * Math.sin(rad(n.a));
+  });
+
+  const quadOf = n => {
+    if (n.ring === 0) return 'Origin';
+    if (n.ring === 'pole' || n.ring === 'axis') return 'Axis';
+    const a = ((n.a % 360) + 360) % 360;
+    if (a % 90 === 0) return {0:'Present axis', 90:'Collective axis', 180:'Past axis', 270:'Personal axis'}[a];
+    return a < 90 ? 'Present × collective' : a < 180 ? 'Past × collective' : a < 270 ? 'Past × personal' : 'Present × personal';
+  };
+  const listName = {common:'Common list', mine:'My list', both:'Both lists'};
+
+  const svg = document.getElementById('map');
+  const el = (tag, attrs = {}, parent = svg) => {
+    const e = document.createElementNS(SVGNS, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    parent.appendChild(e);
+    return e;
+  };
+
+  // --- field
+  const field = el('g');
+  [1,2,3].forEach(k => el('circle', {cx:CX, cy:CY, r:RING[k], class:'ring'}, field));
+  const P = RING.pole;
+  el('line', {x1:CX-P, y1:CY, x2:CX+P-8, y2:CY, class:'axis'}, field);
+  el('path', {d:`M${CX+P} ${CY} l-14 -6 v12 z`, class:'axis-head'}, field);
+  el('line', {x1:CX, y1:CY+P, x2:CX, y2:CY-P, class:'axis'}, field);
+  el('rect', {x:CX-P-5, y:CY-5, width:10, height:10, fill:'var(--ink)'}, field);
+  [[CX, CY-P],[CX, CY+P]].forEach(([x,y]) => el('rect', {x:x-5, y:y-5, width:10, height:10, fill:'var(--ink)'}, field));
+
+  [[1,'LENS'],[2,'METHOD'],[3,'FORM']].forEach(([k, s]) => {
+    const t = el('text', {x:CX-RING[k], y:CY+22, 'text-anchor':'middle', class:'ring-t'}, field);
+    t.textContent = s;
+  });
+
+  const quads = [
+    {x:28, y:44, anchor:'start', t:'PAST × COLLECTIVE', s:'Inherited · what we carry'},
+    {x:1212, y:44, anchor:'end', t:'PRESENT × COLLECTIVE', s:'Voiced · what we say now'},
+    {x:28, y:1074, anchor:'start', t:'PAST × PERSONAL', s:'Remembered · what I hold'},
+    {x:1212, y:1074, anchor:'end', t:'PRESENT × PERSONAL', s:'Made · what I try'},
+  ];
+  quads.forEach(q => {
+    const a = el('text', {x:q.x, y:q.y, 'text-anchor':q.anchor, class:'quad-t'}, field); a.textContent = q.t;
+    const b = el('text', {x:q.x, y:q.y+22, 'text-anchor':q.anchor, class:'quad-s'}, field); b.textContent = q.s;
+  });
+
+  // --- edges
+  const edgeLayer = el('g');
+  const edgeEls = E.map(([a, b, type]) => {
+    const A = byId[a], B = byId[b];
+    let d;
+    if (type === 'informs' && A.a !== B.a) {
+      // bow each line slightly away from the centre so it stays off the middle
+      const mx = (A.x + B.x) / 2, my = (A.y + B.y) / 2;
+      const dx = B.x - A.x, dy = B.y - A.y, len = Math.hypot(dx, dy) || 1;
+      let nx = -dy / len, ny = dx / len;
+      if ((mx - CX) * nx + (my - CY) * ny < 0) { nx = -nx; ny = -ny; }
+      const k = Math.min(40, len * 0.14);
+      d = `M${A.x} ${A.y} Q${mx + nx * k} ${my + ny * k} ${B.x} ${B.y}`;
+    } else {
+      d = `M${A.x} ${A.y} L${B.x} ${B.y}`;
+    }
+    const p = el('path', {d, class:`edge ${type}`}, edgeLayer);
+    p.dataset.a = a; p.dataset.b = b;
+    return p;
+  });
+
+  // --- nodes
+  const LH = 21;
+  const nodeLayer = el('g');
+  const nodeEls = {};
+  N.forEach(n => {
+    const g = el('g', {class:`node ${n.list}${n.ring==='pole'?' pole':''}${n.ring===0?' identity':''}${n.ring==='axis'?' axis-word':''}`,
+      tabindex:'0', role:'button', 'aria-label':`${n.t.join(' ')}, ${listName[n.list]}`}, nodeLayer);
+    g.dataset.id = n.id;
+    nodeEls[n.id] = g;
+
+    if (n.ring === 0) {
+      el('circle', {cx:n.x-14, cy:n.y, r:44, class:'id-a'}, g);
+      el('circle', {cx:n.x+14, cy:n.y, r:44, class:'id-b'}, g);
+      const t = el('text', {x:n.x, y:n.y+10, 'text-anchor':'middle', class:'both'}, g);
+      t.textContent = 'Identity';
+      return;
+    }
+    if (n.ring !== 'pole' && n.ring !== 'axis') el('circle', {cx:n.x, cy:n.y, r:5.5, class:'dot'}, g);
+    if (n.ring !== 'axis') el('circle', {cx:n.x, cy:n.y, r:16, class:'hit'}, g);
+
+    const lines = n.t, k = lines.length;
+    const gap = n.ring === 'pole' ? 16 : 13;
+    let x = n.x, y0, anchor;
+    if (n.la === 'r') { x += gap; anchor = 'start'; y0 = n.y + 6 - (k-1) * LH / 2; }
+    else if (n.la === 'l') { x -= gap; anchor = 'end'; y0 = n.y + 6 - (k-1) * LH / 2; }
+    else if (n.la === 't') { anchor = 'middle'; y0 = n.y - gap - 4 - (k-1) * LH; }
+    else { anchor = 'middle'; y0 = n.y + gap + 16; }
+    const t = el('text', {x, y:y0, 'text-anchor':anchor, class:n.list}, g);
+    lines.forEach((s, i) => {
+      const ts = el('tspan', {x, dy: i ? LH : 0}, t);
+      ts.textContent = s;
+    });
+    if (n.ring === 'axis') {
+      const arrow = el('text', {x:n.x+38, y:y0, class:'ring-t'}, g);
+      arrow.textContent = '→';
+    }
+  });
+
+  // --- interaction
+  const neighbours = id => E.filter(e => e[0] === id || e[1] === id)
+    .map(e => ({id: e[0] === id ? e[1] : e[0], type: e[2], out: e[0] === id}));
+
+  const focusOn = id => {
+    svg.classList.add('focus');
+    const nb = new Set(neighbours(id).map(x => x.id)); nb.add(id);
+    Object.entries(nodeEls).forEach(([k, g]) => g.classList.toggle('on', nb.has(k)));
+    edgeEls.forEach(p => p.classList.toggle('on', p.dataset.a === id || p.dataset.b === id));
+  };
+  const clearFocus = () => svg.classList.remove('focus');
+
+  const detail = document.getElementById('detail');
+  let selected = 'identity';
+  const relLabel = (x) => x.type === 'contrast' ? 'contrast' : x.type === 'shapes' ? (x.out ? 'shapes' : 'shapes identity') : (x.out ? 'informs' : 'from');
+  const render = id => {
+    selected = id;
+    const n = byId[id];
+    Object.entries(nodeEls).forEach(([k, g]) => g.classList.toggle('sel', k === id));
+    const ringTxt = RING_NAME[n.ring];
+    const where = n.ring === 'axis' ? 'The horizontal axis' : n.ring === 0 ? 'Origin' : n.ring === 'pole' ? `Axis end · ${n.a===180?'past':n.a===0?'present':n.a===90?'collective':'personal'}` : `${quadOf(n)} · ${ringTxt} ring · ${n.a}°`;
+    const nb = neighbours(id);
+    detail.innerHTML = `
+      <span class="eyebrow">${listName[n.list]}</span>
+      <h3 class="${n.list}">${n.t.join(' ')}</h3>
+      <span class="where">${where}</span>
+      <p>${n.why}</p>
+      ${nb.length ? `<div class="chips">${nb.map(x => `<button type="button" class="chip ${x.type}" data-go="${x.id}"><span class="rel">${relLabel(x)}</span><span class="${byId[x.id].list}">${byId[x.id].t.join(' ')}</span></button>`).join('')}</div>` : ''}`;
+  };
+  detail.addEventListener('click', e => { const b = e.target.closest('[data-go]'); if (b) { render(b.dataset.go); focusOn(b.dataset.go); } });
+
+  Object.entries(nodeEls).forEach(([id, g]) => {
+    g.addEventListener('mouseenter', () => focusOn(id));
+    g.addEventListener('mouseleave', clearFocus);
+    g.addEventListener('focus', () => focusOn(id));
+    g.addEventListener('blur', clearFocus);
+    g.addEventListener('click', () => render(id));
+    g.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); render(id); } });
+  });
+
+  // --- filter
+  document.querySelectorAll('.seg button').forEach(b => b.addEventListener('click', () => {
+    document.querySelectorAll('.seg button').forEach(x => x.setAttribute('aria-pressed', x === b));
+    svg.dataset.filter = b.dataset.f;
+  }));
+
+  // --- findings, counted from the data so they always match the map
+  const side = n => n.ring === 0 || n.ring === 'axis' || n.a % 180 === 90 ? 'axis' : (Math.cos(rad(n.a)) > 0 ? 'right' : 'left');
+  const count = (list, s) => N.filter(n => n.list === list && side(n) === s).length;
+  const bridges = N.filter(n => n.ring !== 'pole' && n.ring !== 'axis' && n.ring !== 0 && n.a % 90 === 0);
+  const name = n => `<span class="${n.list}">${n.t.join(' ')}</span>`;
+  const contrasts = E.filter(e => e[2] === 'contrast');
+  document.getElementById('findings').innerHTML = `
+    <div class="finding"><span class="big both">1</span><span class="eyebrow">Shared word</span>
+      <p>Only <span class="both">Identity</span> appears on both lists. Placing it at the origin makes it the point every other concept is measured from.</p></div>
+    <div class="finding"><span class="big"><span class="mine">${count('mine','left')}</span> : <span class="common">${count('common','left')}</span></span><span class="eyebrow">Left half, past side</span>
+      <p>Your list leans toward the inherited half: ${count('mine','left')} of your concepts sit left of centre, against ${count('common','left')} from the common list. The common list leans the other way, with ${count('common','right')} concepts right of centre against your ${count('mine','right')}.</p></div>
+    <div class="finding"><span class="big">${bridges.length}</span><span class="eyebrow">Bridges</span>
+      <p>${bridges.map(name).join(', ')} sit on an axis. Two come from each list, and they are where your practice and the common vocabulary meet in the work itself.</p></div>
+    <div class="finding"><span class="big">${contrasts.length}</span><span class="eyebrow">Held contrasts</span>
+      <p>${contrasts.map(([a,b]) => `${name(byId[a])} / ${name(byId[b])}`).join('; ')}. Each pair sits on opposite sides of <span class="both">Identity</span>; the practice keeps both rather than choosing.</p></div>`;
+
+  // --- index
+  const order = [0,'axis','pole',1,2,3];
+  const rows = [...N].sort((a, b) => order.indexOf(a.ring) - order.indexOf(b.ring) || a.a - b.a);
+  const tbody = document.querySelector('#index tbody');
+  tbody.innerHTML = rows.map(n => `<tr class="row" data-go="${n.id}" tabindex="0">
+    <td class="name ${n.list}">${n.t.join(' ')}</td>
+    <td class="meta">${listName[n.list]}</td>
+    <td class="meta">${quadOf(n)}</td>
+    <td class="meta">${RING_NAME[n.ring]}${typeof n.ring === 'number' && n.ring ? ` · ${n.a}°` : ''}</td>
+    <td>${n.why}</td></tr>`).join('');
+  const goRow = tr => { render(tr.dataset.go); focusOn(tr.dataset.go); svg.closest('.stage').scrollIntoView({behavior:'smooth', block:'start'}); setTimeout(clearFocus, 1800); };
+  tbody.addEventListener('click', e => { const tr = e.target.closest('tr'); if (tr) goRow(tr); });
+  tbody.addEventListener('keydown', e => { const tr = e.target.closest('tr'); if (tr && e.key === 'Enter') goRow(tr); });
+
+  render(selected);
+})();
+</script>
+
+</body>
+</html>

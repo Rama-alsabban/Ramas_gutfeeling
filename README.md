@@ -48,6 +48,12 @@ The data lives in the `FOODS` array in `index.html`. Edit it to add foods or cha
 
 ---
 
+## Practice concept map
+
+`concept-map/index.html` is a separate page: one map of the 26 concepts behind the practice (the common list in *italic*, my list in **bold**, *__Identity__*, on both, at the centre). Time runs left to right from Heritage to Contemporary perspective, scale runs from Personal up to Socio-political approach, and three rings go from lens to method to form. On GitHub Pages it's at `/concept-map/`.
+
+---
+
 ## Files
 
 ```
