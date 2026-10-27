@@ -1,0 +1,499 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+</head>
+<body>
+<title>Practice Onion</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,700;1,9..144,400;1,9..144,700&family=DM+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a red onion sliced across, like the reference photo. Time is the heart, each ring is one step out,
+   three branches grow through the rings, Identity is the skin. Map left, story panel right. */
+:root{
+  --paper:#f6f5f4;        /* the white sheet behind the slice */
+  --band-a:#fcf1f4;       /* onion flesh */
+  --band-b:#fdf6f8;       /* onion flesh, lighter ring */
+  --ring:#e0507c;         /* red-pink membrane */
+  --skin:#b51f4f;         /* outer skin */
+  --ink:#2a0f1a;
+  --muted:#8a5a69;
+  --line:#6d1631;         /* branch lines, darker than the rings so they read on top */
+  --halo:#fdf5f7;
+  --f-concept:'Fraunces', 'Iowan Old Style', Georgia, serif;
+  --f-label:'DM Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#140b0e; --band-a:#2a1219; --band-b:#22101a; --ring:#c2416a; --skin:#f0668f;
+    --ink:#f8e9ee; --muted:#bf93a2; --line:#ffb3c8; --halo:#22101a; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#140b0e; --band-a:#2a1219; --band-b:#22101a; --ring:#c2416a; --skin:#f0668f;
+  --ink:#f8e9ee; --muted:#bf93a2; --line:#ffb3c8; --halo:#22101a; color-scheme:dark;
+}
+
+body{background:var(--paper);color:var(--ink);font-family:var(--f-concept);font-size:17px;line-height:1.5}
+.wrap{max-width:1360px;margin:0 auto;padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px));padding-block:32px 64px;display:grid;gap:36px}
+
+/* the typographic system */
+.common{font-style:italic;font-weight:400}
+.mine{font-style:normal;font-weight:700}
+.both{font-style:italic;font-weight:700}
+
+.eyebrow{font-family:var(--f-label);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+header{display:grid;gap:14px;max-width:70ch}
+h1{margin:0;font-size:clamp(40px,6.4vw,84px);line-height:.95;font-weight:400;letter-spacing:-.02em;font-variation-settings:'opsz' 144;text-wrap:balance}
+h1 .common{font-weight:400}
+h1 .both{color:var(--skin)}
+.lede{margin:0;font-size:19px;text-wrap:pretty}
+
+.stage{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:32px;align-items:start}
+@media (max-width:1020px){.stage{grid-template-columns:minmax(0,1fr)}}
+.mapbox{overflow-x:auto;-webkit-overflow-scrolling:touch}
+#onion{display:block;width:100%;min-width:700px;height:auto}
+.scroll-hint{display:none;font-family:var(--f-label);font-size:12px;color:var(--muted)}
+@media (max-width:740px){.scroll-hint{display:block}}
+
+aside{display:grid;gap:24px;position:sticky;top:calc(env(safe-area-inset-top, 0px) + 16px)}
+@media (max-width:1020px){aside{position:static}}
+.panel{border-top:1.5px solid var(--ink);padding-top:12px;display:grid;gap:10px}
+.key{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;align-items:baseline}
+.key .s{font-size:24px}
+.key .w{font-family:var(--f-label);font-size:12.5px;color:var(--muted)}
+
+.branches{display:grid;gap:8px}
+.br{display:grid;grid-template-columns:1fr auto;gap:2px 10px;align-items:baseline}
+.br .n{font-size:18px}
+.br .c{font-family:var(--f-label);font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.bar{grid-column:1 / -1;display:flex;height:8px;gap:2px}
+.bar i{display:block;height:100%;border:1.5px solid var(--skin)}
+.bar i.m{background:var(--skin)}
+
+.btn{font:500 12px/1 var(--f-label);letter-spacing:.08em;text-transform:uppercase;padding:12px 14px;border:1.5px solid var(--ink);background:transparent;color:var(--ink);cursor:pointer}
+.btn.primary{background:var(--skin);border-color:var(--skin);color:var(--paper)}
+.btn:disabled{opacity:.35;cursor:default}
+.btn:focus-visible{outline:2px solid var(--skin);outline-offset:3px}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+
+#detail h3{margin:0;font-size:34px;line-height:1.05;font-variation-settings:'opsz' 96}
+#detail .where{font-family:var(--f-label);font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+#detail p{margin:0}
+#detail .say{font-size:22px;line-height:1.3;font-variation-settings:'opsz' 48}
+.trail{font-size:15px;line-height:1.6;color:var(--muted)}
+.trail span{color:var(--ink)}
+.counter{font-family:var(--f-label);font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+
+/* svg */
+.band-a{fill:var(--band-a)}
+.band-b{fill:var(--band-b)}
+.membrane{fill:none;stroke:var(--ring);stroke-width:1.6;opacity:.9}
+.membrane-glow{fill:none;stroke:var(--ring);stroke-width:9;opacity:.16}
+.skin{fill:none;stroke:var(--skin);stroke-width:9;stroke-linejoin:round}
+.heart{fill:var(--skin)}
+.seam{stroke:var(--ring);stroke-width:1;stroke-dasharray:2 5}
+.step-n{font-family:var(--f-label);font-size:11px;fill:var(--muted)}
+.branch-t{font-family:var(--f-label);font-size:12.5px;letter-spacing:.16em;fill:var(--muted)}
+.branch-s{font-family:var(--f-concept);font-size:16px;font-style:italic;fill:var(--ink)}
+.edge{fill:none;stroke:var(--line);stroke-width:1.8;stroke-linecap:round;transition:opacity .25s, stroke-width .25s}
+.edge.side{stroke-dasharray:1 5}
+.arrive{fill:var(--skin);stroke:var(--paper);stroke-width:3}
+.node{cursor:pointer;transition:opacity .25s}
+.node:focus{outline:none}
+.node text{fill:var(--ink);font-family:var(--f-concept);font-size:20px;paint-order:stroke;stroke:var(--halo);stroke-width:6px;stroke-linejoin:round}
+.node .dot{fill:var(--ink);stroke:var(--halo);stroke-width:2.5}
+.node .hit{fill:transparent}
+.node.first text{font-size:22px}
+.node.sel .dot,.node:focus-visible .dot{fill:var(--skin);r:8}
+.node.sel text,.node:focus-visible text{fill:var(--skin)}
+.time-t{fill:var(--paper)!important;stroke:none!important;font-size:30px!important}
+.id-t{fill:var(--skin)!important;font-size:46px!important;stroke:none!important;letter-spacing:.01em}
+.vn-stem{fill:none;stroke:var(--skin);stroke-width:6;stroke-linecap:round}
+
+#onion.focus .edge:not(.on){opacity:.12}
+#onion.focus .node:not(.on){opacity:.22}
+#onion.focus .arrive:not(.on){opacity:.2}
+#onion .edge.on{stroke-width:3}
+#onion.story .edge:not(.seen){opacity:0}
+#onion.story .node:not(.seen){opacity:.16}
+#onion.story .arrive:not(.seen){opacity:0}
+#onion.story .edge.now{stroke-width:4;stroke:var(--skin)}
+#onion.story .node.now .dot{fill:var(--skin)}
+#onion.story .node.now text{fill:var(--skin)}
+
+footer{font-family:var(--f-label);font-size:12px;color:var(--muted);max-width:80ch}
+@media (prefers-reduced-motion: reduce){.edge,.node{transition:none}}
+</style>
+
+<div class="wrap">
+  <header>
+    <span class="eyebrow">Practice Atlas · 26 concepts · 2 lists</span>
+    <h1>From <span class="common">Time</span> to <span class="both">Identity</span></h1>
+    <p class="lede"><span class="common">Time</span> is the heart of the onion, and every layer out is one step further from it. Three branches grow through the layers: <span class="common">Process</span> brings experience, <span class="mine">Heritage</span> brings the past, <span class="mine">Contemporary perspective</span> brings the present. All three reach the skin, <span class="both">Identity</span>, the only concept on both lists.</p>
+  </header>
+
+  <div class="stage">
+    <div>
+      <div class="mapbox"><svg id="onion" viewBox="0 120 1300 1170" role="group" aria-label="Onion map: Time at the core, Identity as the skin"></svg></div>
+      <div class="scroll-hint">Scroll sideways to see the whole onion.</div>
+    </div>
+
+    <aside>
+      <div class="panel">
+        <span class="eyebrow">Type key</span>
+        <div class="key">
+          <span class="s common">Italic</span><span class="w">Common list · 13</span>
+          <span class="s mine">Bold</span><span class="w">My list · 13</span>
+          <span class="s both">Bold italic</span><span class="w">Both lists · Identity</span>
+        </div>
+      </div>
+
+      <div class="panel" id="detail" aria-live="polite"></div>
+
+      <div class="panel">
+        <span class="eyebrow">Present it</span>
+        <div class="row" id="story-controls">
+          <button type="button" class="btn primary" id="story-start">Tell the story</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <span class="eyebrow">Who each branch belongs to</span>
+        <div class="branches" id="branches"></div>
+      </div>
+    </aside>
+  </div>
+
+  <footer>How to read it: the layer a concept sits in is the number of steps it is from Time. Solid lines are the main path of a branch; dotted lines are side branches. Hover a concept to trace its way back to Time.</footer>
+</div>
+
+<script>
+(() => {
+  const NS = 'http://www.w3.org/2000/svg';
+  const CX = 650, CY = 760, CORE = 62, BAND = 46, LAYERS = 8;
+  const SKIN = CORE + LAYERS * BAND + 20;
+  const rad = d => d * Math.PI / 180;
+
+  // a sliced onion is round but never a perfect circle: each ring wobbles a little,
+  // the inner rings more than the outer ones, and the wobble drifts from ring to ring
+  const f = (d, r) => {
+    const t = rad(d), u = r / SKIN;
+    const amp = 0.022 + 0.05 * Math.pow(1 - Math.min(1, u), 2);
+    return 1 + amp * (0.6 * Math.sin(2 * t + 0.9 + u * 1.3) + 0.4 * Math.sin(3 * t + 2.1 - u * 2.2) + 0.22 * Math.sin(5 * t + 0.4 + u * 3));
+  };
+  const pt = (d, r) => [CX + r * f(d, r) * Math.cos(rad(d)), CY - r * f(d, r) * Math.sin(rad(d))];
+  const layerR = k => CORE + (k - 0.5) * BAND;
+
+  // branch: p process, h heritage, c contemporary
+  const N = {
+    time:          {t:['Time'], list:'common', k:0},
+    process:       {t:['Process'], list:'common', b:'p', k:1, a:212, la:'l'},
+    experiment:    {t:['Experimentation'], list:'common', b:'p', k:2, a:220, la:'l'},
+    interdisc:     {t:['Interdisciplinary'], list:'common', b:'p', k:3, a:228, la:'l'},
+    simplicity:    {t:['Simplicity'], list:'common', b:'p', k:4, a:192, la:'l'},
+    interactive:   {t:['Interactive'], list:'mine', b:'p', k:4, a:238, la:'l'},
+    immersive:     {t:['Immersiveness'], list:'common', b:'p', k:5, a:246, la:'l'},
+    personal:      {t:['Personal'], list:'mine', b:'p', k:6, a:254, la:'l'},
+
+    heritage:      {t:['Heritage'], list:'mine', b:'h', k:1, a:96, la:'t'},
+    archive:       {t:['Archive'], list:'mine', b:'h', k:2, a:100, la:'l'},
+    tangibility:   {t:['Tangibility *'], list:'mine', b:'h', k:3, a:104, la:'l'},
+    printing:      {t:['Printing methodology'], list:'mine', b:'h', k:4, a:108, la:'l'},
+    collective:    {t:['Collective History /','memory'], list:'mine', b:'h', k:5, a:112, la:'l'},
+    preservation:  {t:['Cultural preservation'], list:'mine', b:'h', k:6, a:116, la:'l'},
+    socio:         {t:['Socio-political','approach'], list:'common', b:'h', k:6, a:84, la:'t'},
+    nuance:        {t:['Cultural / social','nuance'], list:'mine', b:'h', k:7, a:60, la:'r'},
+    bilingual:     {t:['Bilingual'], list:'mine', b:'h', k:8, a:40, la:'r'},
+
+    contemporary:  {t:['Contemporary perspective'], list:'mine', b:'c', k:1, a:5, la:'r'},
+    reflectivity:  {t:['Reflectivity'], list:'common', b:'c', k:2, a:345, la:'r'},
+    flexibility:   {t:['Flexibility'], list:'common', b:'c', k:3, a:334, la:'r'},
+    humour:        {t:['Humour'], list:'common', b:'c', k:4, a:325, la:'r'},
+    dissidence:    {t:['Dissidence'], list:'common', b:'c', k:5, a:316, la:'r'},
+    contrast:      {t:['Contrast'], list:'common', b:'c', k:6, a:306, la:'r'},
+
+    identity:      {t:['Identity'], list:'both', k:7},
+    narratives:    {t:['Visual narratives'], list:'mine', k:8},
+  };
+  Object.entries(N).forEach(([id, n]) => n.id = id);
+
+  // the story, in the order it is told. Each step is one link and the sentence that justifies it.
+  const S = [
+    {to:'time', say:'Time is where everything starts. With time you understand the context and why something happened. Remove it and a big part of everything is gone.'},
+    {from:'time', to:'process', say:'Process needs time.'},
+    {from:'process', to:'experiment', say:'Process needs experimentation.'},
+    {from:'experiment', to:'interdisc', say:'Experimentation can lead to something interdisciplinary.'},
+    {from:'interdisc', to:'simplicity', side:true, say:'Interdisciplinary work can still be simple.'},
+    {from:'interdisc', to:'interactive', say:'Interdisciplinary work can become interactive.'},
+    {from:'interactive', to:'immersive', say:'When something is interactive, you get immersiveness.'},
+    {from:'immersive', to:'personal', say:'Immersiveness involves the senses of the person in front of you, so it becomes personal.'},
+    {from:'personal', to:'identity', say:'What I experience personally becomes part of who I am.'},
+    {from:'time', to:'heritage', say:'Heritage needs time to develop.'},
+    {from:'heritage', to:'archive', say:'Heritage needs to be archived.'},
+    {from:'archive', to:'tangibility', say:'To archive it, I make it tangible.'},
+    {from:'tangibility', to:'printing', say:'Printing is how I make it tangible.'},
+    {from:'printing', to:'collective', say:'Once it is printed it can be shared, and what is shared becomes collective history.'},
+    {from:'collective', to:'preservation', say:'With collective history, we can do cultural preservation.'},
+    {from:'preservation', to:'identity', say:'Preserving a culture builds an identity.'},
+    {from:'collective', to:'socio', side:true, say:'Collective history can also take a socio-political approach.'},
+    {from:'socio', to:'nuance', side:true, say:'A socio-political approach carries cultural and social nuance.'},
+    {from:'nuance', to:'bilingual', side:true, say:'That nuance lives in language, so the work becomes bilingual.'},
+    {from:'time', to:'contemporary', say:'A contemporary perspective also needs time.'},
+    {from:'contemporary', to:'reflectivity', say:'To have a contemporary perspective, you have to reflect.'},
+    {from:'reflectivity', to:'flexibility', say:'To reflect, you need to be flexible.'},
+    {from:'flexibility', to:'humour', say:'With flexibility, you can have humour.'},
+    {from:'humour', to:'dissidence', say:'Humour can be a way of showing dissidence.'},
+    {from:'dissidence', to:'contrast', say:'Dissidence is contrasting and rebellious.'},
+    {from:'contrast', to:'identity', say:'That contrast also creates an identity.'},
+    {to:'identity', say:'My past and my present meet in Identity, and so do my list and the common list.'},
+    {from:'identity', to:'narratives', say:'Through identity, I develop visual narratives.'},
+  ];
+  const links = S.filter(s => s.from);
+  const parents = id => links.filter(l => l.to === id).map(l => l.from);
+
+  const svg = document.getElementById('onion');
+  const el = (tag, attrs = {}, parent = svg) => {
+    const e = document.createElementNS(NS, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    parent.appendChild(e);
+    return e;
+  };
+  const contour = r => {
+    let d = '';
+    for (let a = 0; a <= 360; a += 2) { const [x, y] = pt(a, r); d += (a ? 'L' : 'M') + x.toFixed(1) + ' ' + y.toFixed(1); }
+    return d + 'Z';
+  };
+
+  // --- flesh: alternating layers, outside in
+  const flesh = el('g');
+  el('path', {d:contour(SKIN), class:'band-a'}, flesh);
+  for (let k = LAYERS; k >= 1; k--) {
+    el('path', {d:contour(CORE + k * BAND), class: k % 2 ? 'band-b' : 'band-a'}, flesh);
+    el('path', {d:contour(CORE + k * BAND), class:'membrane-glow'}, flesh);
+    el('path', {d:contour(CORE + k * BAND), class:'membrane'}, flesh);
+  }
+  // seams between the three branches
+  [18, 172, 280].forEach(a => {
+    const [x1, y1] = pt(a, CORE), [x2, y2] = pt(a, SKIN);
+    el('line', {x1, y1, x2, y2, class:'seam'}, flesh);
+  });
+  // step numbers along the left seam
+  for (let k = 1; k <= LAYERS; k++) {
+    const [x, y] = pt(176, layerR(k));
+    const t = el('text', {x, y: y + 4, 'text-anchor':'middle', class:'step-n'}, flesh);
+    t.textContent = k;
+  }
+  el('path', {d:contour(SKIN), class:'skin'}, flesh);
+
+  // branch names outside the skin
+  [
+    {a:150, t:'HERITAGE BRANCH', s:'brings the past', anchor:'end', dx:-30},
+    {a:215, t:'PROCESS BRANCH', s:'brings experience', anchor:'end', dx:-30},
+    {a:338, t:'CONTEMPORARY BRANCH', s:'brings the present', anchor:'end', fixX:1290},
+  ].forEach(b => {
+    let [x, y] = pt(b.a, SKIN + 40);
+    if (b.fixX) { x = b.fixX; b.dx = 0; y += 60; }
+    const t1 = el('text', {x:x + b.dx, y, 'text-anchor':b.anchor, class:'branch-t'}, flesh); t1.textContent = b.t;
+    const t2 = el('text', {x:x + b.dx, y:y + 22, 'text-anchor':b.anchor, class:'branch-s'}, flesh); t2.textContent = b.s;
+  });
+
+  // --- positions
+  Object.values(N).forEach(n => {
+    if (n.id === 'time') { n.x = CX; n.y = CY; return; }
+    if (n.id === 'identity' || n.id === 'narratives') return;
+    [n.x, n.y] = pt(n.a, layerR(n.k));
+  });
+
+  // --- edges, drawn as curves that follow the onion's layers
+  const ARRIVE = {personal:262, preservation:124, contrast:298};
+  const edgeLayer = el('g'), arriveLayer = el('g');
+  const edgeEls = [];
+  const arriveEls = {};
+  links.forEach((l, i) => {
+    if (l.to === 'narratives') return;
+    const A = N[l.from], B = N[l.to];
+    let a0, r0, a1, r1;
+    if (l.from === 'time') { a0 = a1 = B.a; r0 = CORE; r1 = layerR(B.k); }
+    else if (l.to === 'identity') { a0 = A.a; r0 = layerR(A.k); a1 = ARRIVE[l.from]; r1 = SKIN; }
+    else { a0 = A.a; r0 = layerR(A.k); a1 = B.a; r1 = layerR(B.k); }
+    let d = '';
+    const da = ((a1 - a0 + 540) % 360) - 180;   // always turn the short way round
+    for (let s = 0; s <= 24; s++) {
+      const t = s / 24, e = t * t * (3 - 2 * t);
+      const [x, y] = pt(a0 + da * e, r0 + (r1 - r0) * t);
+      d += (s ? 'L' : 'M') + x.toFixed(1) + ' ' + y.toFixed(1);
+    }
+    const p = el('path', {d, class:`edge${l.side ? ' side' : ''}`}, edgeLayer);
+    p.dataset.from = l.from; p.dataset.to = l.to;
+    edgeEls.push(p);
+    if (l.to === 'identity') {
+      const [x, y] = pt(a1, SKIN);
+      arriveEls[l.from] = el('circle', {cx:x, cy:y, r:9, class:'arrive'}, arriveLayer);
+    }
+  });
+
+  // --- nodes
+  const LH = 22;
+  const nodeLayer = el('g');
+  const nodeEls = {};
+  const mkNode = (n, cls = '') => {
+    const g = el('g', {class:`node ${n.list} ${cls}`, tabindex:'0', role:'button', 'aria-label':`${n.t.join(' ')}, ${listName[n.list]}`}, nodeLayer);
+    g.dataset.id = n.id;
+    nodeEls[n.id] = g;
+    return g;
+  };
+  const listName = {common:'Common list', mine:'My list', both:'Both lists'};
+
+  Object.values(N).forEach(n => {
+    if (n.id === 'time') {
+      const g = mkNode(n, 'core');
+      el('path', {d:contour(CORE - 6), class:'heart'}, g);
+      const t = el('text', {x:CX, y:CY + 10, 'text-anchor':'middle', class:'common time-t'}, g); t.textContent = 'Time';
+      return;
+    }
+    if (n.id === 'identity') {
+      const g = mkNode(n);
+      // the skin itself is the concept; the name runs along its base
+      el('path', {d:contour(SKIN), fill:'none', stroke:'transparent', 'stroke-width':22}, g);
+      const r = SKIN + 34;
+      const [x1, y1] = pt(215, r), [x2, y2] = pt(325, r);
+      const R = r * f(270, r);
+      el('path', {id:'id-arc', d:`M${x1} ${y1} A${R} ${R} 0 0 0 ${x2} ${y2}`, fill:'none'}, g);
+      const t = el('text', {class:'both id-t', dy:16}, g);
+      const tp = el('textPath', {href:'#id-arc', startOffset:'50%', 'text-anchor':'middle'}, t);
+      tp.textContent = 'Identity';
+      return;
+    }
+    if (n.id === 'narratives') {
+      const g = mkNode(n);
+      const [x0, y0] = pt(90, SKIN);
+      el('path', {d:`M${x0} ${y0 - 4} C ${x0 - 2} ${y0 - 40}, ${x0 + 26} ${y0 - 62}, ${x0 + 40} ${y0 - 92}`, class:'vn-stem'}, g);
+      el('circle', {cx:x0 + 40, cy:y0 - 92, r:7, class:'dot'}, g);
+      el('circle', {cx:x0 + 40, cy:y0 - 92, r:18, class:'hit'}, g);
+      const t = el('text', {x:x0 + 58, y:y0 - 86, class:'mine'}, g); t.textContent = 'Visual narratives';
+      n.x = x0 + 40; n.y = y0 - 92;
+      return;
+    }
+    const g = mkNode(n, n.k === 1 ? 'first' : '');
+    el('circle', {cx:n.x, cy:n.y, r:6, class:'dot'}, g);
+    el('circle', {cx:n.x, cy:n.y, r:18, class:'hit'}, g);
+    const k = n.t.length, gap = 13;
+    let x = n.x, y0, anchor;
+    if (n.la === 'r') { x += gap; anchor = 'start'; y0 = n.y + 7 - (k - 1) * LH / 2; }
+    else if (n.la === 'l') { x -= gap; anchor = 'end'; y0 = n.y + 7 - (k - 1) * LH / 2; }
+    else if (n.la === 't') { anchor = 'middle'; y0 = n.y - gap - 4 - (k - 1) * LH; }
+    else { anchor = 'middle'; y0 = n.y + gap + 18; }
+    const t = el('text', {x, y:y0, 'text-anchor':anchor, class:n.list}, g);
+    n.t.forEach((s, i) => { const ts = el('tspan', {x, dy: i ? LH : 0}, t); ts.textContent = s; });
+  });
+
+  // --- tracing a concept back to Time
+  const ancestors = id => {
+    const seen = new Set([id]); const stack = [id];
+    while (stack.length) { const c = stack.pop(); parents(c).forEach(p => { if (!seen.has(p)) { seen.add(p); stack.push(p); } }); }
+    return seen;
+  };
+  const trailTo = id => {
+    const path = [id];
+    let c = id;
+    while (c !== 'time') { const p = parents(c); if (!p.length) break; c = p[0]; path.unshift(c); }
+    return path;
+  };
+  const focusOn = id => {
+    if (storyAt >= 0) return;
+    const set = ancestors(id);
+    svg.classList.add('focus');
+    Object.entries(nodeEls).forEach(([k, g]) => g.classList.toggle('on', set.has(k)));
+    edgeEls.forEach(p => p.classList.toggle('on', set.has(p.dataset.from) && set.has(p.dataset.to)));
+    Object.entries(arriveEls).forEach(([k, c]) => c.classList.toggle('on', set.has(k) && set.has('identity')));
+  };
+  const clearFocus = () => svg.classList.remove('focus');
+
+  const fmt = id => `<span class="${N[id].list}">${N[id].t.join(' ')}</span>`;
+  const branchName = {p:'Process branch', h:'Heritage branch', c:'Contemporary branch'};
+  const detail = document.getElementById('detail');
+
+  const showConcept = id => {
+    const n = N[id];
+    Object.entries(nodeEls).forEach(([k, g]) => g.classList.toggle('sel', k === id));
+    const where = id === 'time' ? 'The heart · step 0'
+      : id === 'identity' ? 'The skin · all three branches arrive here'
+      : id === 'narratives' ? 'Grows out of the skin'
+      : `${branchName[n.b]} · layer ${n.k} · ${n.k} step${n.k > 1 ? 's' : ''} from Time`;
+    const incoming = S.filter(s => s.to === id);
+    const trail = id === 'identity' ? '' : trailTo(id).map(fmt).join(' → ');
+    detail.innerHTML = `
+      <span class="eyebrow">${listName[n.list]}</span>
+      <h3 class="${n.list}">${n.t.join(' ')}</h3>
+      <span class="where">${where}</span>
+      ${incoming.map(s => `<p class="say">${s.say}</p>`).join('')}
+      ${trail && id !== 'time' ? `<div class="trail">${trail}</div>` : ''}`;
+  };
+
+  Object.entries(nodeEls).forEach(([id, g]) => {
+    g.addEventListener('mouseenter', () => focusOn(id));
+    g.addEventListener('mouseleave', clearFocus);
+    g.addEventListener('focus', () => focusOn(id));
+    g.addEventListener('blur', clearFocus);
+    const pick = () => { if (storyAt >= 0) endStory(); showConcept(id); };
+    g.addEventListener('click', pick);
+    g.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } });
+  });
+
+  // --- story mode: the onion grows one link at a time
+  let storyAt = -1;
+  const controls = document.getElementById('story-controls');
+  const renderStory = () => {
+    const step = S[storyAt];
+    const seenNodes = new Set(), seenEdges = new Set();
+    S.slice(0, storyAt + 1).forEach(s => { seenNodes.add(s.to); if (s.from) { seenNodes.add(s.from); seenEdges.add(s.from + '>' + s.to); } });
+    Object.entries(nodeEls).forEach(([k, g]) => { g.classList.toggle('seen', seenNodes.has(k)); g.classList.toggle('now', k === step.to); g.classList.remove('sel'); });
+    edgeEls.forEach(p => { const key = p.dataset.from + '>' + p.dataset.to; p.classList.toggle('seen', seenEdges.has(key)); p.classList.toggle('now', step.from && key === step.from + '>' + step.to); });
+    Object.entries(arriveEls).forEach(([k, c]) => c.classList.toggle('seen', seenEdges.has(k + '>identity')));
+    detail.innerHTML = `
+      <span class="counter">Step ${storyAt + 1} of ${S.length}</span>
+      <h3>${step.from ? fmt(step.from) + ' <span style="font-weight:400;font-style:normal">→</span> ' : ''}${fmt(step.to)}</h3>
+      <p class="say">${step.say}</p>`;
+    controls.innerHTML = `
+      <button type="button" class="btn" id="st-prev" ${storyAt === 0 ? 'disabled' : ''}>Back</button>
+      <button type="button" class="btn primary" id="st-next">${storyAt === S.length - 1 ? 'Finish' : 'Next'}</button>
+      <button type="button" class="btn" id="st-exit">Show whole map</button>`;
+    document.getElementById('st-prev').onclick = () => { storyAt--; renderStory(); };
+    document.getElementById('st-next').onclick = () => { if (storyAt === S.length - 1) endStory(); else { storyAt++; renderStory(); } };
+    document.getElementById('st-exit').onclick = endStory;
+  };
+  const startStory = () => { clearFocus(); storyAt = 0; svg.classList.add('story'); renderStory(); document.getElementById('st-next').focus(); };
+  const endStory = () => {
+    storyAt = -1; svg.classList.remove('story');
+    controls.innerHTML = '<button type="button" class="btn primary" id="story-start">Tell the story</button>';
+    document.getElementById('story-start').onclick = startStory;
+    showConcept('identity');
+  };
+  document.getElementById('story-start').onclick = startStory;
+  document.addEventListener('keydown', e => {
+    if (storyAt < 0) return;
+    if (e.key === 'ArrowRight' && storyAt < S.length - 1) { storyAt++; renderStory(); }
+    else if (e.key === 'ArrowLeft' && storyAt > 0) { storyAt--; renderStory(); }
+    else if (e.key === 'Escape') endStory();
+  });
+
+  // --- branch ownership, counted from the data
+  const box = document.getElementById('branches');
+  box.innerHTML = ['h', 'p', 'c'].map(b => {
+    const ns = Object.values(N).filter(n => n.b === b);
+    const m = ns.filter(n => n.list === 'mine').length, c = ns.length - m;
+    const head = {h:'<span class="mine">Heritage</span>', p:'<span class="common">Process</span>', c:'<span class="mine">Contemporary perspective</span>'}[b];
+    return `<div class="br"><span class="n">${head}</span><span class="c">${m} mine · ${c} common</span>
+      <div class="bar" aria-hidden="true">${ns.map(n => `<i class="${n.list === 'mine' ? 'm' : ''}" style="flex:1"></i>`).join('')}</div></div>`;
+  }).join('') + '<p class="trail" style="margin:0">Filled = my list, outlined = common list. Heritage is almost all mine, the other two are mostly common, and all three meet at <span class="both">Identity</span>.</p>';
+
+  showConcept('identity');
+})();
+</script>
+
+</body>
+</html>
