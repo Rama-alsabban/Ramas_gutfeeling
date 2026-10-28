@@ -58,6 +58,8 @@ The data lives in the `FOODS` array in `index.html`. Edit it to add foods or cha
 
 `practice-nile/index.html` draws the same structure as a river map in the style of a Nile line drawing: three rivers rise from the lake of Time, meet at Identity, and open into the sea as the Visual narratives delta. On GitHub Pages it's at `/practice-nile/`.
 
+`practice-canopy/index.html` is the tree seen from below, in purple and green: Time is the dashed purple trunk, the concepts are leaf clusters along three limbs, they all meet at Identity, and Visual narratives is the open sky above. On GitHub Pages it's at `/practice-canopy/`.
+
 ---
 
 ## Files
