@@ -1,0 +1,480 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+</head>
+<body>
+<title>Practice Tree</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,700;0,9..144,900;1,9..144,400;1,9..144,700;1,9..144,900&family=DM+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a folk-print tree on a night sheet. Time is the ground, three coloured limbs carry the branches upward,
+   every concept is a printed white disc, Identity is the crown, Visual narratives is the star above it.
+   A deliberate single dark look, like the screen-printed reference. */
+:root{
+  color-scheme:dark;
+  --night:#100d0c;       /* the black sheet */
+  --sheet:#171311;
+  --paper:#fbf6ec;       /* the white discs */
+  --ink:#16110f;         /* text inside discs */
+  --text:#f4ecdf;        /* text on the night */
+  --muted:#a69a89;
+  --process:#ff7a45;     /* orange limb */
+  --heritage:#ffd23f;    /* yellow limb, carries on from the trunk */
+  --contemp:#55b6ff;     /* blue limb */
+  --identity:#ff5fa2;    /* pink: where both lists meet */
+  --leaf:#2f9e5b;
+  --leaf-2:#4cc176;
+  --ground:#2f9e5b;
+  --f-concept:'Fraunces', 'Iowan Old Style', Georgia, serif;
+  --f-label:'DM Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+}
+body{background:var(--night);color:var(--text);font-family:var(--f-concept);font-size:17px;line-height:1.5}
+.wrap{max-width:1380px;margin:0 auto;padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px));padding-block:32px 64px;display:grid;gap:36px}
+
+/* the typographic system */
+.common{font-style:italic;font-weight:400}
+.mine{font-style:normal;font-weight:700}
+.both{font-style:italic;font-weight:900}
+
+.eyebrow{font-family:var(--f-label);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+header{display:grid;gap:14px;max-width:70ch}
+h1{margin:0;font-size:clamp(40px,6.4vw,84px);line-height:.95;font-weight:400;letter-spacing:-.02em;font-variation-settings:'opsz' 144;text-wrap:balance}
+h1 .common{font-weight:400}
+h1 .both{color:var(--identity)}
+.lede{margin:0;font-size:19px;text-wrap:pretty}
+.lede .p{color:var(--process)} .lede .h{color:var(--heritage)} .lede .c{color:var(--contemp)}
+
+.stage{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:32px;align-items:start}
+@media (max-width:1020px){.stage{grid-template-columns:minmax(0,1fr)}}
+.mapbox{overflow-x:auto;-webkit-overflow-scrolling:touch;background:var(--sheet);border:1px solid #2a2320}
+#tree{display:block;width:100%;min-width:720px;height:auto}
+.scroll-hint{display:none;font-family:var(--f-label);font-size:12px;color:var(--muted);padding-top:8px}
+@media (max-width:760px){.scroll-hint{display:block}}
+
+aside{display:grid;gap:24px;position:sticky;top:calc(env(safe-area-inset-top, 0px) + 16px)}
+@media (max-width:1020px){aside{position:static}}
+.panel{border-top:1.5px solid var(--text);padding-top:12px;display:grid;gap:10px}
+.key{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;align-items:baseline}
+.key .s{font-size:24px}
+.key .w{font-family:var(--f-label);font-size:12.5px;color:var(--muted)}
+.limbs{display:grid;gap:6px}
+.limbs div{display:grid;grid-template-columns:28px 1fr auto;gap:10px;align-items:center;font-size:16px}
+.limbs i{display:block;height:8px;border-radius:4px}
+.limbs .c{font-family:var(--f-label);font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+
+.btn{font:500 12px/1 var(--f-label);letter-spacing:.08em;text-transform:uppercase;padding:12px 14px;border:1.5px solid var(--text);background:transparent;color:var(--text);cursor:pointer}
+.btn.primary{background:var(--heritage);border-color:var(--heritage);color:var(--ink)}
+.btn:disabled{opacity:.35;cursor:default}
+.btn:focus-visible{outline:2px solid var(--identity);outline-offset:3px}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+
+#detail h3{margin:0;font-size:34px;line-height:1.05;font-variation-settings:'opsz' 96}
+#detail .where{font-family:var(--f-label);font-size:12px;letter-spacing:.06em;text-transform:uppercase}
+#detail p{margin:0}
+#detail .say{font-size:22px;line-height:1.3;font-variation-settings:'opsz' 48}
+.trail{font-size:15px;line-height:1.6;color:var(--muted)}
+.trail span{color:var(--text)}
+.counter{font-family:var(--f-label);font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+
+/* svg */
+.limb{fill:none;stroke-linecap:round}
+.leaf{stroke:none}
+.edge-g{transition:opacity .25s}
+.disc-shadow{opacity:1}
+.disc{fill:var(--paper)}
+.disc-ring{fill:none;stroke-width:4}
+.node{cursor:pointer;transition:opacity .25s}
+.node:focus{outline:none}
+.node text{fill:var(--ink);font-family:var(--f-concept)}
+.node:focus-visible .disc,.node.sel .disc{fill:#fff3c4}
+.node.sel .disc-ring,.node:focus-visible .disc-ring{stroke-width:8}
+.ground-t{fill:var(--paper)!important;font-size:74px}
+.branch-t{font-family:var(--f-label);font-size:13px;letter-spacing:.16em}
+.branch-s{font-family:var(--f-concept);font-size:17px;font-style:italic;fill:var(--text)}
+.star{fill:var(--paper)}
+
+#tree.focus .edge-g:not(.on){opacity:.12}
+#tree.focus .node:not(.on){opacity:.25}
+#tree.story .edge-g:not(.seen){opacity:0}
+#tree.story .node:not(.seen){opacity:.14}
+#tree.story .node.now .disc{fill:#fff3c4}
+#tree.story .node.now .disc-ring{stroke-width:8}
+
+footer{font-family:var(--f-label);font-size:12px;color:var(--muted);max-width:80ch}
+@media (prefers-reduced-motion: reduce){.edge-g,.node{transition:none}}
+</style>
+
+<div class="wrap">
+  <header>
+    <span class="eyebrow">Practice Atlas · 26 concepts · 2 lists</span>
+    <h1>From <span class="common">Time</span> to <span class="both">Identity</span></h1>
+    <p class="lede">Everything grows from <span class="common">Time</span>. Three limbs carry <span class="p">experience</span>, <span class="h">the past</span> and <span class="c">the present</span>, and all three grow up into <span class="both">Identity</span>, the only concept on both lists. What shines out of it is <span class="mine">Visual narratives</span>.</p>
+  </header>
+
+  <div class="stage">
+    <div>
+      <div class="mapbox"><svg id="tree" viewBox="0 0 1200 1660" role="group" aria-label="Tree map: Time is the ground, Identity is the crown"></svg></div>
+      <div class="scroll-hint">Scroll sideways to see the whole tree.</div>
+    </div>
+
+    <aside>
+      <div class="panel">
+        <span class="eyebrow">Type key</span>
+        <div class="key">
+          <span class="s common">Italic</span><span class="w">Common list · 13</span>
+          <span class="s mine">Bold</span><span class="w">My list · 13</span>
+          <span class="s both">Bold italic</span><span class="w">Both lists · Identity</span>
+        </div>
+      </div>
+
+      <div class="panel" id="detail" aria-live="polite"></div>
+
+      <div class="panel">
+        <span class="eyebrow">Present it</span>
+        <div class="row" id="story-controls">
+          <button type="button" class="btn primary" id="story-start">Tell the story</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <span class="eyebrow">The three limbs · whose concepts</span>
+        <div class="limbs" id="limbs"></div>
+      </div>
+    </aside>
+  </div>
+
+  <footer>How to read it: start at the ground and climb. Each disc follows from the one below it on the same limb; thinner twigs are side branches. Colour shows the limb, type shows the list. Hover a disc to light its way back down to Time.</footer>
+</div>
+
+<script>
+(() => {
+  const NS = 'http://www.w3.org/2000/svg';
+  const R = 62;                       // disc radius
+  const SPLIT = {x:600, y:1300};      // where the trunk splits into three limbs
+  const COLOR = {p:'var(--process)', h:'var(--heritage)', c:'var(--contemp)'};
+
+  // b: limb (p process, h heritage, c contemporary). d: steps from Time.
+  const N = {
+    time:         {t:['Time'], list:'common', d:0},
+    process:      {t:['Process'], list:'common', b:'p', d:1, x:270, y:1195},
+    experiment:   {t:['Experimen-','tation'], list:'common', b:'p', d:2, x:185, y:1065},
+    interdisc:    {t:['Inter-','disciplinary'], list:'common', b:'p', d:3, x:275, y:935},
+    simplicity:   {t:['Simplicity'], list:'common', b:'p', d:4, x:415, y:860},
+    interactive:  {t:['Interactive'], list:'mine', b:'p', d:4, x:175, y:805},
+    immersive:    {t:['Immersive-','ness'], list:'common', b:'p', d:5, x:270, y:675},
+    personal:     {t:['Personal'], list:'mine', b:'p', d:6, x:185, y:545},
+
+    heritage:     {t:['Heritage'], list:'mine', b:'h', d:1, x:600, y:1180},
+    archive:      {t:['Archive'], list:'mine', b:'h', d:2, x:550, y:1050},
+    tangibility:  {t:['Tangibility *'], list:'mine', b:'h', d:3, x:645, y:930},
+    printing:     {t:['Printing','methodology'], list:'mine', b:'h', d:4, x:565, y:805},
+    collective:   {t:['Collective','History /','memory'], list:'mine', b:'h', d:5, x:640, y:680},
+    preservation: {t:['Cultural','preservation'], list:'mine', b:'h', d:6, x:545, y:555},
+    socio:        {t:['Socio-political','approach'], list:'common', b:'h', d:6, x:800, y:640, twig:true},
+    nuance:       {t:['Cultural /','social','nuance'], list:'mine', b:'h', d:7, x:845, y:505, twig:true},
+    bilingual:    {t:['Bilingual'], list:'mine', b:'h', d:8, x:850, y:370, twig:true},
+
+    contemporary: {t:['Contem-','porary','perspective'], list:'mine', b:'c', d:1, x:930, y:1195},
+    reflectivity: {t:['Reflectivity'], list:'common', b:'c', d:2, x:1020, y:1065},
+    flexibility:  {t:['Flexibility'], list:'common', b:'c', d:3, x:935, y:940},
+    humour:       {t:['Humour'], list:'common', b:'c', d:4, x:1025, y:815},
+    dissidence:   {t:['Dissidence'], list:'common', b:'c', d:5, x:945, y:690},
+    contrast:     {t:['Contrast'], list:'common', b:'c', d:6, x:1035, y:560},
+
+    identity:     {t:['Identity'], list:'both', d:7, x:600, y:330},
+    narratives:   {t:['Visual','narratives'], list:'mine', d:8, x:600, y:112},
+  };
+  Object.entries(N).forEach(([id, n]) => n.id = id);
+  N.simplicity.twig = true;
+
+  // the story, in the order it is told: one link and the sentence that justifies it
+  const S = [
+    {to:'time', say:'Time is where everything starts. With time you understand the context and why something happened. Remove it and a big part of everything is gone.'},
+    {from:'time', to:'process', say:'Process needs time.'},
+    {from:'process', to:'experiment', say:'Process needs experimentation.'},
+    {from:'experiment', to:'interdisc', say:'Experimentation can lead to something interdisciplinary.'},
+    {from:'interdisc', to:'simplicity', say:'Interdisciplinary work can still be simple.'},
+    {from:'interdisc', to:'interactive', say:'Interdisciplinary work can become interactive.'},
+    {from:'interactive', to:'immersive', say:'When something is interactive, you get immersiveness.'},
+    {from:'immersive', to:'personal', say:'Immersiveness involves the senses of the person in front of you, so it becomes personal.'},
+    {from:'personal', to:'identity', say:'What I experience personally becomes part of who I am.'},
+    {from:'time', to:'heritage', say:'Heritage needs time to develop.'},
+    {from:'heritage', to:'archive', say:'Heritage needs to be archived.'},
+    {from:'archive', to:'tangibility', say:'To archive it, I make it tangible.'},
+    {from:'tangibility', to:'printing', say:'Printing is how I make it tangible.'},
+    {from:'printing', to:'collective', say:'Once it is printed it can be shared, and what is shared becomes collective history.'},
+    {from:'collective', to:'preservation', say:'With collective history, we can do cultural preservation.'},
+    {from:'preservation', to:'identity', say:'Preserving a culture builds an identity.'},
+    {from:'collective', to:'socio', say:'Collective history can also take a socio-political approach.'},
+    {from:'socio', to:'nuance', say:'A socio-political approach carries cultural and social nuance.'},
+    {from:'nuance', to:'bilingual', say:'That nuance lives in language, so the work becomes bilingual.'},
+    {from:'time', to:'contemporary', say:'A contemporary perspective also needs time.'},
+    {from:'contemporary', to:'reflectivity', say:'To have a contemporary perspective, you have to reflect.'},
+    {from:'reflectivity', to:'flexibility', say:'To reflect, you need to be flexible.'},
+    {from:'flexibility', to:'humour', say:'With flexibility, you can have humour.'},
+    {from:'humour', to:'dissidence', say:'Humour can be a way of showing dissidence.'},
+    {from:'dissidence', to:'contrast', say:'Dissidence is contrasting and rebellious.'},
+    {from:'contrast', to:'identity', say:'That contrast also creates an identity.'},
+    {to:'identity', say:'My past and my present meet in Identity, and so do my list and the common list.'},
+    {from:'identity', to:'narratives', say:'Through identity, I develop visual narratives.'},
+  ];
+  const links = S.filter(s => s.from);
+  const parents = id => links.filter(l => l.to === id).map(l => l.from);
+  const listName = {common:'Common list', mine:'My list', both:'Both lists'};
+
+  const svg = document.getElementById('tree');
+  const el = (tag, attrs = {}, parent = svg) => {
+    const e = document.createElementNS(NS, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    parent.appendChild(e);
+    return e;
+  };
+  // small seeded random so the leaves and stars land in the same place every time
+  let seed = 7;
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+
+  // --- print grain
+  const defs = el('defs');
+  const filt = el('filter', {id:'grain', x:'0', y:'0', width:'100%', height:'100%'}, defs);
+  el('feTurbulence', {type:'fractalNoise', baseFrequency:'0.85', numOctaves:'2', stitchTiles:'stitch'}, filt);
+  el('feColorMatrix', {type:'saturate', values:'0'}, filt);
+  const ct = el('feComponentTransfer', {}, filt);
+  el('feFuncA', {type:'table', tableValues:'0 0.22'}, ct);
+
+  // --- sky: scattered stars across the top
+  const sky = el('g');
+  const starPath = (cx, cy, r, pts = 5, inner = 0.45) => {
+    let d = '';
+    for (let i = 0; i < pts * 2; i++) {
+      const a = -Math.PI / 2 + i * Math.PI / pts, rr = i % 2 ? r * inner : r;
+      d += (i ? 'L' : 'M') + (cx + rr * Math.cos(a)).toFixed(1) + ' ' + (cy + rr * Math.sin(a)).toFixed(1);
+    }
+    return d + 'Z';
+  };
+  for (let i = 0; i < 46; i++) {
+    const x = 30 + rnd() * 1140, y = 24 + rnd() * 240;
+    if (Math.hypot(x - 600, (y - 112) * 1.2) < 150) continue;      // keep clear of the big star
+    if (Math.hypot(x - 600, y - 330) < 150) continue;              // and the crown
+    if (x > 760 && x < 940 && y > 290) continue;                   // and Bilingual
+    el('path', {d:starPath(x, y, 5 + rnd() * 9, rnd() > .5 ? 5 : 4, .42), class:'star', opacity:(.55 + rnd() * .45).toFixed(2)}, sky);
+  }
+
+  // --- ground and trunk (the trunk is Time growing upward)
+  const groundG = el('g');
+  el('path', {d:`M0 1660 L0 1560 C 220 1478, 420 1470, 600 1470 C 780 1470, 980 1478, 1200 1560 L1200 1660 Z`, fill:'var(--ground)'}, groundG);
+  el('path', {d:`M538 1490 C 560 1420, 578 1360, 586 ${SPLIT.y} L614 ${SPLIT.y} C 622 1360, 640 1420, 662 1490 Z`, fill:'var(--heritage)'}, groundG);
+  // roots
+  [[-1,0],[1,0],[-1,1],[1,1]].forEach(([s, k]) => {
+    el('path', {d:`M${600 + s * 40} 1488 q ${s * (40 + k * 30)} ${8 + k * 6} ${s * (70 + k * 50)} ${22 + k * 12}`, fill:'none', stroke:'var(--heritage)', 'stroke-width':10 - k * 3, 'stroke-linecap':'round'}, groundG);
+  });
+
+  // branch names at the foot of each limb
+  [
+    {x:60, y:1330, a:'start', t:'PROCESS LIMB', s:'brings experience', c:'p'},
+    {x:640, y:1350, a:'start', t:'HERITAGE LIMB', s:'brings the past', c:'h'},
+    {x:1140, y:1330, a:'end', t:'CONTEMPORARY LIMB', s:'brings the present', c:'c'},
+  ].forEach(b => {
+    const t1 = el('text', {x:b.x, y:b.y, 'text-anchor':b.a, class:'branch-t', fill:COLOR[b.c]}, groundG); t1.textContent = b.t;
+    const t2 = el('text', {x:b.x, y:b.y + 22, 'text-anchor':b.a, class:'branch-s'}, groundG); t2.textContent = b.s;
+  });
+
+  // --- limbs: one curve per link, with leaves along it
+  const leafD = 'M0 0 C 8 -7, 22 -8, 32 0 C 22 8, 8 7, 0 0 Z';
+  const limbLayer = el('g');
+  const edgeEls = [];
+  links.forEach(l => {
+    const A = l.from === 'time' ? SPLIT : N[l.from], B = N[l.to];
+    const b = l.from === 'time' ? N[l.to].b : (N[l.to].b || N[l.from].b);
+    const color = l.to === 'narratives' ? 'var(--identity)' : COLOR[b];
+    const twig = N[l.to].twig;
+    const depth = l.from === 'time' ? 0 : N[l.from].d;
+    const w = twig ? 7 : Math.max(9, 22 - depth * 2.2);
+    let d;
+    if (l.to === 'identity' && l.from === 'contrast') {
+      d = `M${A.x} ${A.y} C ${A.x + 50} ${A.y - 270}, ${B.x + 300} ${B.y - 120}, ${B.x} ${B.y}`;
+    } else if (l.to === 'identity' && l.from === 'personal') {
+      d = `M${A.x} ${A.y} C ${A.x - 20} ${A.y - 140}, ${B.x - 260} ${B.y + 10}, ${B.x} ${B.y}`;
+    } else {
+      const dy = A.y - B.y;
+      d = `M${A.x} ${A.y} C ${A.x} ${A.y - dy * .55}, ${B.x} ${B.y + dy * .55}, ${B.x} ${B.y}`;
+    }
+    const g = el('g', {class:'edge-g'}, limbLayer);
+    g.dataset.from = l.from; g.dataset.to = l.to;
+    const p = el('path', {d, class:'limb', stroke:color, 'stroke-width':w}, g);
+    if (l.to !== 'narratives') {
+      const len = p.getTotalLength();
+      const startAt = l.from === 'time' ? 30 : R + 6, endAt = len - (l.to === 'identity' ? 110 : R + 6);
+      let side = 1;
+      for (let s = startAt; s < endAt; s += 26 + rnd() * 10) {
+        const q = p.getPointAtLength(s), q2 = p.getPointAtLength(Math.min(len, s + 1));
+        const ang = Math.atan2(q2.y - q.y, q2.x - q.x) * 180 / Math.PI;
+        const sc = (twig ? .65 : .9) + rnd() * .35;
+        el('path', {d:leafD, class:'leaf', fill: rnd() > .35 ? 'var(--leaf)' : 'var(--leaf-2)',
+          transform:`translate(${q.x.toFixed(1)} ${q.y.toFixed(1)}) rotate(${(ang + side * (58 + rnd() * 18)).toFixed(1)}) scale(${sc.toFixed(2)})`}, g);
+        side = -side;
+      }
+    }
+    edgeEls.push(g);
+  });
+
+  // --- discs
+  const nodeLayer = el('g');
+  const nodeEls = {};
+  // text is written at a trial size, then measured and scaled to fill its disc (re-run once the fonts load)
+  const fitters = [];
+  const writeIn = (g, n, cx, cy, r, extraCls = '') => {
+    const t = el('text', {x:cx, 'text-anchor':'middle', class:`${n.list} ${extraCls}`}, g);
+    const spans = n.t.map(s => { const ts = el('tspan', {x:cx}, t); ts.textContent = s; return ts; });
+    const fitNow = () => {
+      const trial = 20;
+      t.setAttribute('font-size', trial);
+      const widest = Math.max(...spans.map(ts => ts.getComputedTextLength())) || 1;
+      const k = n.t.length;
+      // usable width shrinks as the block gets taller, because the disc is round
+      const maxW = r * 2 * (k === 1 ? .84 : k === 2 ? .8 : .72);
+      const fs = Math.min(trial * maxW / widest, (r * 1.45) / (k * 1.08), r * .42);
+      const lh = fs * 1.08;
+      t.setAttribute('font-size', fs.toFixed(1));
+      spans.forEach((ts, i) => ts.setAttribute('y', (cy - (k - 1) * lh / 2 + fs * .34 + i * lh).toFixed(1)));
+    };
+    fitNow(); fitters.push(fitNow);
+  };
+  const mkNode = n => {
+    const g = el('g', {class:`node ${n.list}`, tabindex:'0', role:'button', 'aria-label':`${n.t.join(' ').replace('- ', '')}, ${listName[n.list]}`}, nodeLayer);
+    g.dataset.id = n.id; nodeEls[n.id] = g; return g;
+  };
+
+  Object.values(N).forEach(n => {
+    if (n.id === 'time') {
+      const g = mkNode(n);
+      el('rect', {x:0, y:1500, width:1200, height:160, fill:'transparent'}, g);
+      const t = el('text', {x:600, y:1600, 'text-anchor':'middle', class:'common ground-t'}, g); t.textContent = 'Time';
+      return;
+    }
+    if (n.id === 'narratives') {
+      const g = mkNode(n);
+      el('path', {d:starPath(n.x + 5, n.y + 5, 96, 8, .72), fill:'var(--identity)'}, g);
+      el('path', {d:starPath(n.x, n.y, 96, 8, .72), class:'disc'}, g);
+      writeIn(g, n, n.x, n.y, 70);
+      return;
+    }
+    const r = n.id === 'identity' ? 108 : n.twig ? R - 6 : R;
+    const color = n.id === 'identity' ? 'var(--identity)' : COLOR[n.b];
+    const g = mkNode(n);
+    el('circle', {cx:n.x + 6, cy:n.y + 6, r, fill:color, class:'disc-shadow'}, g);   // off-register print shadow
+    el('circle', {cx:n.x, cy:n.y, r, class:'disc'}, g);
+    el('circle', {cx:n.x, cy:n.y, r:r - 7, class:'disc-ring', stroke:color}, g);
+    writeIn(g, n, n.x, n.y, r - 8);
+  });
+
+  // grain over everything, like a print
+  el('rect', {x:0, y:0, width:1200, height:1660, filter:'url(#grain)', 'pointer-events':'none', style:'mix-blend-mode:overlay'});
+
+  // --- tracing back down to Time
+  const ancestors = id => {
+    const seen = new Set([id]), stack = [id];
+    while (stack.length) parents(stack.pop()).forEach(p => { if (!seen.has(p)) { seen.add(p); stack.push(p); } });
+    return seen;
+  };
+  const trailTo = id => {
+    const path = [id]; let c = id;
+    while (c !== 'time') { const p = parents(c); if (!p.length) break; c = p[0]; path.unshift(c); }
+    return path;
+  };
+  let storyAt = -1;
+  const focusOn = id => {
+    if (storyAt >= 0) return;
+    const set = ancestors(id);
+    svg.classList.add('focus');
+    Object.entries(nodeEls).forEach(([k, g]) => g.classList.toggle('on', set.has(k)));
+    edgeEls.forEach(g => g.classList.toggle('on', set.has(g.dataset.from) && set.has(g.dataset.to)));
+  };
+  const clearFocus = () => svg.classList.remove('focus');
+
+  const name = id => N[id].t.join(' ').replace('- ', '');
+  const fmt = id => `<span class="${N[id].list}">${name(id)}</span>`;
+  const limbName = {p:'Process limb', h:'Heritage limb', c:'Contemporary limb'};
+  const detail = document.getElementById('detail');
+
+  const showConcept = id => {
+    const n = N[id];
+    Object.entries(nodeEls).forEach(([k, g]) => g.classList.toggle('sel', k === id));
+    const where = id === 'time' ? 'The ground · step 0'
+      : id === 'identity' ? 'The crown · all three limbs grow into it'
+      : id === 'narratives' ? 'The star · shines out of Identity'
+      : `${limbName[n.b]}${n.twig ? ' · side twig' : ''} · ${n.d} step${n.d > 1 ? 's' : ''} from Time`;
+    const color = id === 'identity' || id === 'narratives' ? 'var(--identity)' : n.b ? COLOR[n.b] : 'var(--ground)';
+    const incoming = S.filter(s => s.to === id);
+    const trail = id === 'identity' || id === 'time' ? '' : trailTo(id).map(fmt).join(' → ');
+    detail.innerHTML = `
+      <span class="eyebrow">${listName[n.list]}</span>
+      <h3 class="${n.list}">${name(id)}</h3>
+      <span class="where" style="color:${color}">${where}</span>
+      ${incoming.map(s => `<p class="say">${s.say}</p>`).join('')}
+      ${trail ? `<div class="trail">${trail}</div>` : ''}`;
+  };
+
+  Object.entries(nodeEls).forEach(([id, g]) => {
+    g.addEventListener('mouseenter', () => focusOn(id));
+    g.addEventListener('mouseleave', clearFocus);
+    g.addEventListener('focus', () => focusOn(id));
+    g.addEventListener('blur', clearFocus);
+    const pick = () => { if (storyAt >= 0) endStory(); showConcept(id); };
+    g.addEventListener('click', pick);
+    g.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } });
+  });
+
+  // --- story mode: the tree grows one link at a time
+  const controls = document.getElementById('story-controls');
+  const renderStory = () => {
+    const step = S[storyAt];
+    const seenNodes = new Set(), seenEdges = new Set();
+    S.slice(0, storyAt + 1).forEach(s => { seenNodes.add(s.to); if (s.from) { seenNodes.add(s.from); seenEdges.add(s.from + '>' + s.to); } });
+    Object.entries(nodeEls).forEach(([k, g]) => { g.classList.toggle('seen', seenNodes.has(k)); g.classList.toggle('now', k === step.to); g.classList.remove('sel'); });
+    edgeEls.forEach(g => g.classList.toggle('seen', seenEdges.has(g.dataset.from + '>' + g.dataset.to)));
+    detail.innerHTML = `
+      <span class="counter">Step ${storyAt + 1} of ${S.length}</span>
+      <h3>${step.from ? fmt(step.from) + ' <span style="font-weight:400;font-style:normal">→</span> ' : ''}${fmt(step.to)}</h3>
+      <p class="say">${step.say}</p>`;
+    controls.innerHTML = `
+      <button type="button" class="btn" id="st-prev" ${storyAt === 0 ? 'disabled' : ''}>Back</button>
+      <button type="button" class="btn primary" id="st-next">${storyAt === S.length - 1 ? 'Finish' : 'Next'}</button>
+      <button type="button" class="btn" id="st-exit">Show whole tree</button>`;
+    document.getElementById('st-prev').onclick = () => { storyAt--; renderStory(); };
+    document.getElementById('st-next').onclick = () => { if (storyAt === S.length - 1) endStory(); else { storyAt++; renderStory(); } };
+    document.getElementById('st-exit').onclick = endStory;
+  };
+  const startStory = () => { clearFocus(); storyAt = 0; svg.classList.add('story'); renderStory(); document.getElementById('st-next').focus(); };
+  const endStory = () => {
+    storyAt = -1; svg.classList.remove('story');
+    controls.innerHTML = '<button type="button" class="btn primary" id="story-start">Tell the story</button>';
+    document.getElementById('story-start').onclick = startStory;
+    showConcept('identity');
+  };
+  document.getElementById('story-start').onclick = startStory;
+  document.addEventListener('keydown', e => {
+    if (storyAt < 0) return;
+    if (e.key === 'ArrowRight' && storyAt < S.length - 1) { storyAt++; renderStory(); }
+    else if (e.key === 'ArrowLeft' && storyAt > 0) { storyAt--; renderStory(); }
+    else if (e.key === 'Escape') endStory();
+  });
+
+  // --- whose concepts sit on each limb, counted from the data
+  document.getElementById('limbs').innerHTML = ['h', 'p', 'c'].map(b => {
+    const ns = Object.values(N).filter(n => n.b === b);
+    const m = ns.filter(n => n.list === 'mine').length;
+    const head = {h:'<span class="mine">Heritage</span>', p:'<span class="common">Process</span>', c:'<span class="mine">Contemporary perspective</span>'}[b];
+    return `<div><i style="background:${COLOR[b]}"></i><span>${head}</span><span class="c">${m} mine · ${ns.length - m} common</span></div>`;
+  }).join('') + '<p class="trail" style="margin:4px 0 0">Heritage is almost all my list; Process and Contemporary are mostly the common list. All three grow into <span class="both">Identity</span>.</p>';
+
+  showConcept('identity');
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => fitters.forEach(f => f()));
+})();
+</script>
+
+</body>
+</html>

@@ -54,6 +54,8 @@ The data lives in the `FOODS` array in `index.html`. Edit it to add foods or cha
 
 `practice-onion/index.html` is the newer version: the same concepts drawn as a red-onion slice. Time is the heart, each ring is one step further from it, three branches (Process, Heritage, Contemporary perspective) grow outward, and Identity is the skin where all three arrive. *Tell the story* builds the map one link at a time for presenting. On GitHub Pages it's at `/practice-onion/`.
 
+`practice-tree/index.html` is the tree version, in a folk-print style. Time is the ground, three coloured limbs (Process, Heritage, Contemporary perspective) carry the concepts upward as discs, all three grow into Identity at the crown, and Visual narratives is the star above it. On GitHub Pages it's at `/practice-tree/`.
+
 ---
 
 ## Files
