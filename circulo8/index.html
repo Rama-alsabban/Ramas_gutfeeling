@@ -295,17 +295,17 @@ function reset() {
 /* ---------- story data ---------- */
 const FAMILIES = [
   {name: 'Rounded vowels', letters: 'UO', note: '4 quarters, inverted'},
-  {name: 'Straight letters', letters: 'FTHKLMNVWXZY', note: 'lines added clockwise'},
+  {name: 'Straight letters', letters: 'FHKLMNTVWXYZ', note: 'lines added clockwise'},
   {name: 'Straight vowels', letters: 'AEI', note: 'lines through the centre'},
   {name: 'Round letters', letters: 'BCDGJPQRS', note: 'a dot on the circle'},
 ];
 /* n = how many lines (clockwise from the top); a sibling repeats its partner's lines and adds a bar to the newest one */
 const STRAIGHT = [
-  {ch: 'F', n: 1}, {ch: 'T', n: 1, sib: 'F'}, {ch: 'H', n: 2}, {ch: 'K', n: 3}, {ch: 'L', n: 4},
-  {ch: 'M', n: 5}, {ch: 'N', n: 5, sib: 'M'}, {ch: 'V', n: 6}, {ch: 'W', n: 6, sib: 'V'},
-  {ch: 'X', n: 7}, {ch: 'Z', n: 7, sib: 'X'}, {ch: 'Y', n: 8},
+  {ch: 'F', n: 1}, {ch: 'H', n: 2}, {ch: 'K', n: 3}, {ch: 'L', n: 4}, {ch: 'M', n: 5}, {ch: 'N', n: 5, sib: 'M'},
+  {ch: 'T', n: 1, sib: 'F'}, {ch: 'V', n: 6}, {ch: 'W', n: 6, sib: 'V'}, {ch: 'X', n: 7}, {ch: 'Y', n: 8}, {ch: 'Z', n: 7, sib: 'X'},
 ];
-const SIBLINGS = STRAIGHT.filter(s => s.sib).map(s => s.ch).join('');
+/* siblings that sit right after their partner in the alphabet get a dotted link in the tray */
+const SIBLINGS = STRAIGHT.filter((s, i) => s.sib && i > 0 && STRAIGHT[i - 1].ch === s.sib).map(s => s.ch).join('');
 const linesLabel = n => n === 1 ? 'line <em>1</em>' : n === 8 ? 'all <em>8</em> lines' : `lines <em>1–${n}</em>`;
 const ROUND = 'CDGJPQRS';
 
@@ -412,21 +412,25 @@ const scenes = {
     placeDot(CX, CY, DOT, out, INK);
     let cur = -1;
     STRAIGHT.forEach((st, i) => { if (lt >= T_STRAIGHT(i)) cur = i; });
-    let hand = 0, top = -1;
-    for (let i = 0; i <= cur; i++) {
-      const st = STRAIGHT[i], p = seg(lt, T_STRAIGHT(i), .7), li = st.n - 1;
-      if (st.sib) {                                  // sibling: same lines, a bar on the newest one
-        const fade = i < cur ? 1 - seg(lt, T_STRAIGHT(i + 1), .5) : 1;
-        cap(li, seg(lt, T_STRAIGHT(i), .6), fade, ACC);
-        continue;
+    let top = -1;
+    if (cur >= 0) {
+      const st = STRAIGHT[cur], prev = cur > 0 ? STRAIGHT[cur - 1] : {n: 0}, t0 = T_STRAIGHT(cur);
+      const sweep = st.n === prev.n + 1 && prev.n > 0;   // one more line: the hand sweeps one slice clockwise
+      const p = seg(lt, t0, .7);
+      let hand = lerp(Math.max(0, prev.n - 1), st.n - 1, p) * Q;
+      for (let j = 0; j < 8; j++) {
+        const was = j < prev.n, is = j < st.n;
+        if (was && is) radius(j, 1, 1, INK);
+        else if (is && sweep) { hand = (j - 1 + p) * Q; radius(j, 1, 1, ACC, hand); }
+        else if (is) radius(j, seg(lt, t0 + (j - prev.n) * .12, .5), 1, ACC);
+        else if (was) radius(j, 1 - seg(lt, t0, .5), 1, INK);
       }
-      const isNew = i === cur;
-      if (li === 0) { radius(0, p, 1, isNew ? ACC : INK); hand = 0; }
-      else { hand = (li - 1 + p) * Q; radius(li, 1, 1, isNew ? ACC : INK, hand); }
-      top = li;
-      if (isNew && li > 0) { wedgeNow.setAttribute('d', wedgeD((li - 1) * Q, hand)); wedgeNow.style.opacity = 1; }
+      if (prev.sib) cap(prev.n - 1, 1, 1 - seg(lt, t0, .5), ACC);
+      if (st.sib) cap(st.n - 1, seg(lt, t0 + (st.n !== prev.n ? .7 : 0), .6), 1, ACC);
+      if (sweep) { wedgeNow.setAttribute('d', wedgeD((st.n - 2) * Q, hand)); wedgeNow.style.opacity = 1; }
+      wedgeAll.setAttribute('d', wedgeD(0, hand)); clockwise(hand, 1);
+      top = st.n - 1;
     }
-    if (top >= 0) { wedgeAll.setAttribute('d', wedgeD(0, hand)); clockwise(hand, 1); }
     highlight(top >= 0 ? [top] : []);
     const events = STRAIGHT.map((st, i) => [T_STRAIGHT(i), st.ch, st.sib
       ? `sibling of <em>${st.sib}</em>:<br>${st.sib} + a <em>bar</em> on line ${st.n}`
@@ -434,14 +438,15 @@ const scenes = {
     panel({
       eyebrow: 'Family 2 · Straight letters', corner: corner(2),
       title: 'Straight letters',
-      body: 'Each letter adds one line, clockwise from the top. Siblings share the same lines and add a short bar to the newest one: F and T, M and N, V and W, X and Z.',
+      body: 'Each letter adds one line, clockwise from the top. Siblings share the same lines and add a short bar to the newest one: M and N, V and W, F and T, X and Z.',
       events, waiting: 'starting at <em>1</em>,<br>12 o’clock', tray: STRAIGHT.map(st => st.ch).join(''),
     }, lt);
   },
 
   svowels(lt) {
-    const out = 1 - seg(lt, 0, .7);                  // Y fades
-    for (let i = 0; i < 8; i++) radius(i, 1, out, INK);
+    const out = 1 - seg(lt, 0, .7);                  // Z fades
+    for (let i = 0; i < 7; i++) radius(i, 1, out, INK);
+    cap(6, 1, out, ACC);
     let lit = [];
     if (lt < 7.6) {
       const pA = seg(lt, 1, 1.1), oA = 1 - seg(lt, 3.6, .4);
