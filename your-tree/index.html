@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+</head>
+<body>
+<title>Rama's Tree, Revised</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,700;1,9..40,400;1,9..40,700&display=swap">
+<style>
+/* Layout: Rama's own tree drawing, redrawn with one change in focus: every branch end grows into a single Identity
+   at the top of the trunk. Her yellow tree, green hill and flowers; one white sheet. Single light look. */
+:root{
+  color-scheme:light;
+  --sheet:#ffffff;
+  --ink:#141414;
+  --muted:#5d5d5d;
+  --tree:#f0c445;       /* her yellow */
+  --hill:#3a834c;       /* her green */
+  --petal:#111111;
+  --bloom:#3a7bbd;      /* her blue flower centres */
+  --crown:#2f6e40;
+  --f:'DM Sans', 'Helvetica Neue', Arial, sans-serif;
+}
+body{background:var(--sheet);color:var(--ink);font-family:var(--f);font-size:17px;line-height:1.5}
+.wrap{max-width:1100px;margin:0 auto;padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px));padding-block:28px 56px;display:grid;gap:20px}
+.common{font-style:italic;font-weight:400}
+.mine{font-style:normal;font-weight:700}
+.both{font-style:italic;font-weight:700}
+h1{margin:0;font-size:clamp(28px,4vw,40px);line-height:1.1;font-weight:700;text-wrap:balance}
+.notes{margin:0;padding-left:20px;display:grid;gap:4px;max-width:70ch}
+.box{overflow-x:auto}
+svg{display:block;width:100%;min-width:680px;height:auto}
+svg text{font-family:var(--f);fill:var(--ink)}
+.lbl{font-size:17px;paint-order:stroke;stroke:var(--sheet);stroke-width:5px;stroke-linejoin:round}
+</style>
+
+<div class="wrap">
+  <h1>Your tree, with one <span class="both">Identity</span> at the top</h1>
+  <ol class="notes">
+    <li>The ends of all three branches, <span class="mine">personal</span>, <span class="common">contrast</span> and <span class="mine">cultural preservation</span>, now keep growing until they reach <span class="both">identity</span> at the top of the trunk.</li>
+    <li><span class="mine">Visual narratives</span> blooms above it, like your flowers.</li>
+    <li>Italic is the common list, bold is my list, bold italic is <span class="both">identity</span>. <span class="mine">Archive</span> now sits in line between <span class="mine">heritage</span> and <span class="mine">tangibility</span>, and the three empty branches are gone.</li>
+  </ol>
+  <div class="box"><svg id="t" viewBox="0 0 1240 1110" role="img" aria-label="Tree map: Time in the ground, three branches growing into Identity at the top of the trunk, Visual narratives blooming above"></svg></div>
+</div>
+
+<script>
+(() => {
+  const NS = 'http://www.w3.org/2000/svg';
+  const svg = document.getElementById('t');
+  const el = (tag, a = {}, p = svg) => { const e = document.createElementNS(NS, tag); for (const k in a) e.setAttribute(k, a[k]); p.appendChild(e); return e; };
+  let seed = 5; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+
+  // concepts: x, y, list, label side
+  const P = {
+    cp:{x:452, y:712, t:['contemporary','perspective'], l:'mine', s:'t'},
+    refl:{x:358, y:700, t:['reflectivity'], l:'common', s:'b'},
+    flex:{x:268, y:655, t:['flexibility'], l:'common', s:'l'},
+    humour:{x:222, y:572, t:['humour'], l:'common', s:'l'},
+    diss:{x:192, y:487, t:['dissidence'], l:'common', s:'l'},
+    contrast:{x:162, y:398, t:['contrast'], l:'common', s:'l'},
+
+    process:{x:452, y:482, t:['process'], l:'common', s:'b'},
+    exp:{x:372, y:432, t:['experimentation'], l:'common', s:'l'},
+    inter:{x:352, y:347, t:['interdisciplinary'], l:'common', s:'r'},
+    simp:{x:268, y:318, t:['simplicity'], l:'common', s:'l'},
+    interactive:{x:404, y:278, t:['interactive'], l:'mine', s:'r'},
+    immersive:{x:458, y:222, t:['immersiveness'], l:'common', s:'l'},
+    personal:{x:512, y:188, t:['personal'], l:'mine', s:'l'},
+
+    heritage:{x:690, y:612, t:['heritage'], l:'mine', s:'t'},
+    archive:{x:772, y:588, t:['archive'], l:'mine', s:'b'},
+    tang:{x:792, y:502, t:['tangibility *'], l:'mine', s:'l'},
+    printing:{x:846, y:452, t:['printing methodology'], l:'mine', s:'r'},
+    collective:{x:902, y:394, t:['collective history /','memory'], l:'mine', s:'r'},
+    socio:{x:1000, y:322, t:['socio-political','approach'], l:'common', s:'r'},
+    nuance:{x:1040, y:250, t:['cultural / social','nuance'], l:'mine', s:'r'},
+    bilingual:{x:1062, y:176, t:['bilingual'], l:'mine', s:'r'},
+    preservation:{x:840, y:318, t:['cultural','preservation'], l:'mine', s:'l'},
+  };
+  const ID = {x:590, y:150, r:48};
+
+  // --- hill, flowers, roots, trunk
+  el('path', {d:'M200 1085 L400 972 C 500 945, 700 945, 800 978 L980 1085 Z', fill:'var(--hill)'});
+  const flower = (cx, cy, r) => {
+    const g = el('g');
+    for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3; el('ellipse', {cx:cx + Math.cos(a) * r * .62, cy:cy + Math.sin(a) * r * .62, rx:r * .5, ry:r * .42, transform:`rotate(${i * 60} ${cx + Math.cos(a) * r * .62} ${cy + Math.sin(a) * r * .62})`, fill:'var(--petal)'}, g); }
+    el('ellipse', {cx, cy, rx:r * .42, ry:r * .34, fill:'var(--bloom)'}, g);
+    return g;
+  };
+  flower(716, 1036, 26); flower(760, 995, 20); flower(808, 1026, 32);
+  [[-1, 60, 30], [1, 60, 30], [-1, 25, 55], [1, 25, 55]].forEach(([s, dx, dy]) =>
+    el('path', {d:`M${590 + s * 30} 990 q ${s * dx * .5} ${dy * .2} ${s * dx} ${dy}`, fill:'none', stroke:'var(--tree)', 'stroke-width':14, 'stroke-linecap':'round'}));
+  el('path', {d:`M538 1000 C 560 900, 566 700, 572 420 L 580 ${ID.y + 30} L 600 ${ID.y + 30} L 608 420 C 614 700, 620 900, 642 1000 Z`, fill:'var(--tree)'});
+  const time = el('text', {x:590, y:1070, 'text-anchor':'middle', class:'common', 'font-size':26}); time.textContent = 'Time';
+
+  // --- branches: each stretch tapers a little as it climbs, with small buds like the drawing
+  const branchLayer = el('g');
+  const stretch = (a, b, w, bend = .18) => {
+    const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2, dx = b.x - a.x, dy = b.y - a.y;
+    const d = `M${a.x} ${a.y} Q ${mx - dy * bend} ${my + dx * bend} ${b.x} ${b.y}`;
+    const p = el('path', {d, fill:'none', stroke:'var(--tree)', 'stroke-width':w, 'stroke-linecap':'round'}, branchLayer);
+    const len = p.getTotalLength();
+    for (let s = 14; s < len - 10; s += 22 + rnd() * 12) {
+      const q = p.getPointAtLength(s), q2 = p.getPointAtLength(s + 1);
+      const ang = Math.atan2(q2.y - q.y, q2.x - q.x) + (rnd() > .5 ? 1 : -1) * Math.PI / 2;
+      el('circle', {cx:q.x + Math.cos(ang) * w / 2, cy:q.y + Math.sin(ang) * w / 2, r:2.6 + rnd() * 1.4, fill:'var(--tree)'}, branchLayer);
+    }
+  };
+  const chain = (start, ids, w0, bend) => {
+    let prev = start, w = w0;
+    ids.forEach((id, i) => { stretch(prev, P[id], w, bend * (i % 2 ? -1 : 1)); prev = P[id]; w = Math.max(7, w - 2.2); });
+    return w;
+  };
+  chain({x:568, y:742}, ['cp', 'refl', 'flex', 'humour', 'diss', 'contrast'], 24, .12);
+  chain({x:572, y:472}, ['process', 'exp', 'inter', 'interactive', 'immersive', 'personal'], 20, .14);
+  stretch(P.inter, P.simp, 8, .1);
+  chain({x:606, y:652}, ['heritage', 'archive', 'tang', 'printing', 'collective', 'preservation'], 22, .12);
+  chain(P.collective, ['socio', 'nuance', 'bilingual'], 10, .12);
+
+  // the three branch ends keep growing into Identity
+  const into = (d, w) => el('path', {d, fill:'none', stroke:'var(--tree)', 'stroke-width':w, 'stroke-linecap':'round'}, branchLayer);
+  into(`M${P.contrast.x} ${P.contrast.y} C 120 230, 300 70, ${ID.x - 40} ${ID.y - 28}`, 9);
+  into(`M${P.personal.x} ${P.personal.y} Q 540 160, ${ID.x - 44} ${ID.y + 10}`, 8);
+  into(`M${P.preservation.x} ${P.preservation.y} C 810 190, 720 135, ${ID.x + 44} ${ID.y + 8}`, 9);
+  into(`M${ID.x} ${ID.y - ID.r} L ${ID.x} 76`, 6);
+
+  // --- concept points and labels
+  Object.values(P).forEach(n => {
+    el('circle', {cx:n.x, cy:n.y, r:6, fill:'var(--ink)'});
+    const k = n.t.length, lh = 19, gap = 12;
+    let x = n.x, y, anchor;
+    if (n.s === 'r') { x += gap; anchor = 'start'; y = n.y + 6 - (k - 1) * lh / 2; }
+    else if (n.s === 'l') { x -= gap; anchor = 'end'; y = n.y + 6 - (k - 1) * lh / 2; }
+    else if (n.s === 't') { anchor = 'middle'; y = n.y - gap - 6 - (k - 1) * lh; }
+    else { anchor = 'middle'; y = n.y + gap + 16; }
+    const t = el('text', {x, y, 'text-anchor':anchor, class:`lbl ${n.l}`});
+    n.t.forEach((s, i) => { const ts = el('tspan', {x, dy:i ? lh : 0}, t); ts.textContent = s; });
+  });
+
+  // --- Identity, the crown, and Visual narratives blooming above
+  el('circle', {cx:ID.x, cy:ID.y, r:ID.r, fill:'var(--crown)'});
+  const idt = el('text', {x:ID.x, y:ID.y + 8, 'text-anchor':'middle', class:'both', 'font-size':23, fill:'#fff'}); idt.textContent = 'identity';
+  idt.style.fill = '#fff';
+  flower(ID.x, 52, 30);
+  const vn = el('text', {x:ID.x + 50, y:58, class:'lbl mine'}); vn.textContent = 'visual narratives';
+})();
+</script>
+
+</body>
+</html>
