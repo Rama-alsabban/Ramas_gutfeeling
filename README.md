@@ -56,6 +56,8 @@ The data lives in the `FOODS` array in `index.html`. Edit it to add foods or cha
 
 `practice-tree/index.html` is the tree version, in a folk-print style. Time is the ground, three coloured limbs (Process, Heritage, Contemporary perspective) carry the concepts upward as discs, all three grow into Identity at the crown, and Visual narratives is the star above it. On GitHub Pages it's at `/practice-tree/`.
 
+`practice-nile/index.html` draws the same structure as a river map in the style of a Nile line drawing: three rivers rise from the lake of Time, meet at Identity, and open into the sea as the Visual narratives delta. On GitHub Pages it's at `/practice-nile/`.
+
 ---
 
 ## Files

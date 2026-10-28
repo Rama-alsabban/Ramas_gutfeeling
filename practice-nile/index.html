@@ -1,0 +1,436 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+</head>
+<body>
+<title>Practice Nile</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,700;1,500;1,700&family=Cinzel:wght@500&family=DM+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a river map drawn like the reference: one flat blue sheet, fine navy lines, north at the top.
+   Time is the lake the rivers rise from, three rivers flow north, Identity is the confluence,
+   Visual narratives is the delta opening into the sea. A deliberate single light look. */
+:root{
+  color-scheme:light;
+  --land:#93cdf8;        /* the flat blue sheet from the reference */
+  --sea:#79bdf0;
+  --lake:#82c4f3;
+  --ink:#0d2340;         /* navy line and lettering */
+  --muted:#2c5379;
+  --halo:#93cdf8;
+  --mark:#c8312a;        /* one red mark, for the confluence, like a capital on an old map */
+  --f-map:'Cormorant Garamond', 'Iowan Old Style', Georgia, serif;
+  --f-caps:'Cinzel', 'Trajan Pro', Georgia, serif;
+  --f-label:'DM Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+}
+body{background:var(--land);color:var(--ink);font-family:var(--f-map);font-size:19px;line-height:1.45}
+.wrap{max-width:1360px;margin:0 auto;padding-left:max(16px, env(safe-area-inset-left, 0px));padding-right:max(16px, env(safe-area-inset-right, 0px));padding-block:32px 64px;display:grid;gap:32px}
+
+/* the typographic system. On real maps, water is lettered in italic: the common list reads like the rivers. */
+.common{font-style:italic;font-weight:500}
+.mine{font-style:normal;font-weight:700}
+.both{font-style:italic;font-weight:700}
+
+.eyebrow{font-family:var(--f-label);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+header{display:grid;gap:12px;max-width:68ch}
+h1{margin:0;font-family:var(--f-caps);font-weight:500;font-size:clamp(34px,5.4vw,68px);line-height:1;letter-spacing:.04em;text-wrap:balance}
+.lede{margin:0;font-size:21px;text-wrap:pretty}
+
+.stage{display:grid;grid-template-columns:minmax(0,1fr) 350px;gap:32px;align-items:start}
+@media (max-width:1020px){.stage{grid-template-columns:minmax(0,1fr)}}
+.mapbox{overflow-x:auto;-webkit-overflow-scrolling:touch}
+#nile{display:block;width:100%;max-width:820px;min-width:680px;height:auto;margin:0 auto}
+.scroll-hint{display:none;font-family:var(--f-label);font-size:12px;color:var(--muted)}
+@media (max-width:740px){.scroll-hint{display:block}}
+
+aside{display:grid;gap:24px;position:sticky;top:calc(env(safe-area-inset-top, 0px) + 16px)}
+@media (max-width:1020px){aside{position:static}}
+.panel{border-top:1.5px solid var(--ink);padding-top:12px;display:grid;gap:10px}
+.key{display:grid;grid-template-columns:auto 1fr;gap:2px 14px;align-items:baseline}
+.key .s{font-size:27px}
+.key .w{font-family:var(--f-label);font-size:12.5px;color:var(--muted)}
+.rivers{display:grid;gap:6px}
+.rivers div{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:baseline;font-size:19px}
+.rivers .c{font-family:var(--f-label);font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+
+.btn{font:500 12px/1 var(--f-label);letter-spacing:.08em;text-transform:uppercase;padding:12px 14px;border:1.5px solid var(--ink);background:transparent;color:var(--ink);cursor:pointer}
+.btn.primary{background:var(--ink);color:var(--land)}
+.btn:disabled{opacity:.35;cursor:default}
+.btn:focus-visible{outline:2px solid var(--mark);outline-offset:3px}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+
+#detail h3{margin:0;font-size:38px;line-height:1.05}
+#detail .where{font-family:var(--f-label);font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+#detail p{margin:0}
+#detail .say{font-size:24px;line-height:1.3}
+.trail{font-size:17px;line-height:1.6;color:var(--muted)}
+.trail span{color:var(--ink)}
+.counter{font-family:var(--f-label);font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+
+/* svg */
+.river{fill:none;stroke:var(--ink);stroke-linecap:round;stroke-linejoin:round}
+.edge-g{transition:opacity .25s}
+.node{cursor:pointer;transition:opacity .25s}
+.node:focus{outline:none}
+.node text{fill:var(--ink);font-family:var(--f-map);paint-order:stroke;stroke:var(--halo);stroke-width:6px;stroke-linejoin:round}
+.node .dot{fill:var(--land);stroke:var(--ink);stroke-width:2.5}
+.node .hit{fill:transparent}
+.node.sel .dot,.node:focus-visible .dot{fill:var(--mark);stroke:var(--mark)}
+.node.sel text,.node:focus-visible text{fill:var(--mark)}
+.title-t{font-family:var(--f-caps);font-size:15px;letter-spacing:.18em;fill:var(--ink)}
+.title-s{font-family:var(--f-map);font-style:italic;font-size:19px;fill:var(--muted)}
+.caption{font-family:var(--f-caps);font-size:17px;letter-spacing:.08em;fill:var(--ink)}
+
+#nile.focus .edge-g:not(.on){opacity:.15}
+#nile.focus .node:not(.on){opacity:.25}
+#nile.story .edge-g:not(.seen){opacity:0}
+#nile.story .node:not(.seen){opacity:.15}
+#nile.story .node.now .dot{fill:var(--mark);stroke:var(--mark)}
+#nile.story .node.now text{fill:var(--mark)}
+
+footer{font-family:var(--f-label);font-size:12px;color:var(--muted);max-width:80ch}
+@media (prefers-reduced-motion: reduce){.edge-g,.node{transition:none}}
+</style>
+
+<div class="wrap">
+  <header>
+    <span class="eyebrow">Practice Atlas · 26 concepts · 2 lists</span>
+    <h1>The River of Practice</h1>
+    <p class="lede">Every river rises from the lake of <span class="common">Time</span>. Three rivers flow north carrying experience, the past and the present. They meet at <span class="both">Identity</span>, the only concept on both lists, and open into the sea as <span class="mine">Visual narratives</span>.</p>
+  </header>
+
+  <div class="stage">
+    <div>
+      <div class="mapbox"><svg id="nile" viewBox="0 0 1000 1610" role="group" aria-label="River map: Time is the source lake, Identity is the confluence, Visual narratives is the delta"></svg></div>
+      <div class="scroll-hint">Scroll sideways to see the whole map.</div>
+    </div>
+
+    <aside>
+      <div class="panel">
+        <span class="eyebrow">Type key</span>
+        <div class="key">
+          <span class="s common">Italic</span><span class="w">Common list · 13</span>
+          <span class="s mine">Bold</span><span class="w">My list · 13</span>
+          <span class="s both">Bold italic</span><span class="w">Both lists · Identity</span>
+        </div>
+      </div>
+
+      <div class="panel" id="detail" aria-live="polite"></div>
+
+      <div class="panel">
+        <span class="eyebrow">Present it</span>
+        <div class="row" id="story-controls">
+          <button type="button" class="btn primary" id="story-start">Follow the river</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <span class="eyebrow">The three rivers · whose concepts</span>
+        <div class="rivers" id="rivers"></div>
+      </div>
+    </aside>
+  </div>
+
+  <footer>How to read it: start at the lake at the bottom and follow the water north. Each place follows from the one before it on the same river; thin channels are side branches that end on their own. Hover a place to trace its water back to Time.</footer>
+</div>
+
+<script>
+(() => {
+  const NS = 'http://www.w3.org/2000/svg';
+  // la: label side (r, l, t, b)
+  const N = {
+    time:         {t:['Time'], list:'common', d:0},
+    process:      {t:['Process'], list:'common', b:'p', d:1, x:335, y:1230, la:'l'},
+    experiment:   {t:['Experimentation'], list:'common', b:'p', d:2, x:262, y:1120, la:'l'},
+    interdisc:    {t:['Interdisciplinary'], list:'common', b:'p', d:3, x:300, y:1010, la:'l'},
+    simplicity:   {t:['Simplicity'], list:'common', b:'p', d:4, x:150, y:935, la:'l', side:true},
+    interactive:  {t:['Interactive'], list:'mine', b:'p', d:4, x:252, y:880, la:'l'},
+    immersive:    {t:['Immersiveness'], list:'common', b:'p', d:5, x:295, y:785, la:'l'},
+    personal:     {t:['Personal'], list:'mine', b:'p', d:6, x:330, y:695, la:'l'},
+
+    heritage:     {t:['Heritage'], list:'mine', b:'h', d:1, x:505, y:1230, la:'r'},
+    archive:      {t:['Archive'], list:'mine', b:'h', d:2, x:462, y:1130, la:'l'},
+    tangibility:  {t:['Tangibility *'], list:'mine', b:'h', d:3, x:520, y:1030, la:'r'},
+    printing:     {t:['Printing methodology'], list:'mine', b:'h', d:4, x:470, y:932, la:'r'},
+    collective:   {t:['Collective History /','memory'], list:'mine', b:'h', d:5, x:525, y:838, la:'l'},
+    preservation: {t:['Cultural','preservation'], list:'mine', b:'h', d:6, x:478, y:748, la:'l'},
+    socio:        {t:['Socio-political','approach'], list:'common', b:'h', d:6, x:640, y:822, la:'b', side:true},
+    nuance:       {t:['Cultural / social','nuance'], list:'mine', b:'h', d:7, x:688, y:728, la:'r', side:true},
+    bilingual:    {t:['Bilingual'], list:'mine', b:'h', d:8, x:640, y:660, la:'r', side:true},
+
+    contemporary: {t:['Contemporary','perspective'], list:'mine', b:'c', d:1, x:742, y:1232, la:'r'},
+    reflectivity: {t:['Reflectivity'], list:'common', b:'c', d:2, x:828, y:1128, la:'r'},
+    flexibility:  {t:['Flexibility'], list:'common', b:'c', d:3, x:785, y:1028, la:'r'},
+    humour:       {t:['Humour'], list:'common', b:'c', d:4, x:850, y:930, la:'r'},
+    dissidence:   {t:['Dissidence'], list:'common', b:'c', d:5, x:808, y:832, la:'r'},
+    contrast:     {t:['Contrast'], list:'common', b:'c', d:6, x:850, y:735, la:'r'},
+
+    identity:     {t:['Identity'], list:'both', d:7, x:490, y:628},
+    narratives:   {t:['Visual narratives'], list:'mine', d:8, x:505, y:262},
+  };
+  Object.entries(N).forEach(([id, n]) => n.id = id);
+  const SOURCE = {p:{x:438, y:1352}, h:{x:500, y:1336}, c:{x:566, y:1352}};   // where each river leaves the lake
+
+  const S = [
+    {to:'time', say:'Time is where everything starts. With time you understand the context and why something happened. Remove it and a big part of everything is gone.'},
+    {from:'time', to:'process', say:'Process needs time.'},
+    {from:'process', to:'experiment', say:'Process needs experimentation.'},
+    {from:'experiment', to:'interdisc', say:'Experimentation can lead to something interdisciplinary.'},
+    {from:'interdisc', to:'simplicity', say:'Interdisciplinary work can still be simple.'},
+    {from:'interdisc', to:'interactive', say:'Interdisciplinary work can become interactive.'},
+    {from:'interactive', to:'immersive', say:'When something is interactive, you get immersiveness.'},
+    {from:'immersive', to:'personal', say:'Immersiveness involves the senses of the person in front of you, so it becomes personal.'},
+    {from:'personal', to:'identity', say:'What I experience personally becomes part of who I am.'},
+    {from:'time', to:'heritage', say:'Heritage needs time to develop.'},
+    {from:'heritage', to:'archive', say:'Heritage needs to be archived.'},
+    {from:'archive', to:'tangibility', say:'To archive it, I make it tangible.'},
+    {from:'tangibility', to:'printing', say:'Printing is how I make it tangible.'},
+    {from:'printing', to:'collective', say:'Once it is printed it can be shared, and what is shared becomes collective history.'},
+    {from:'collective', to:'preservation', say:'With collective history, we can do cultural preservation.'},
+    {from:'preservation', to:'identity', say:'Preserving a culture builds an identity.'},
+    {from:'collective', to:'socio', say:'Collective history can also take a socio-political approach.'},
+    {from:'socio', to:'nuance', say:'A socio-political approach carries cultural and social nuance.'},
+    {from:'nuance', to:'bilingual', say:'That nuance lives in language, so the work becomes bilingual.'},
+    {from:'time', to:'contemporary', say:'A contemporary perspective also needs time.'},
+    {from:'contemporary', to:'reflectivity', say:'To have a contemporary perspective, you have to reflect.'},
+    {from:'reflectivity', to:'flexibility', say:'To reflect, you need to be flexible.'},
+    {from:'flexibility', to:'humour', say:'With flexibility, you can have humour.'},
+    {from:'humour', to:'dissidence', say:'Humour can be a way of showing dissidence.'},
+    {from:'dissidence', to:'contrast', say:'Dissidence is contrasting and rebellious.'},
+    {from:'contrast', to:'identity', say:'That contrast also creates an identity.'},
+    {to:'identity', say:'My past and my present meet in Identity, and so do my list and the common list.'},
+    {from:'identity', to:'narratives', say:'Through identity, I develop visual narratives.'},
+  ];
+  const links = S.filter(s => s.from);
+  const parents = id => links.filter(l => l.to === id).map(l => l.from);
+  const listName = {common:'Common list', mine:'My list', both:'Both lists'};
+
+  const svg = document.getElementById('nile');
+  const el = (tag, attrs = {}, parent = svg) => {
+    const e = document.createElementNS(NS, tag);
+    for (const k in attrs) e.setAttribute(k, attrs[k]);
+    parent.appendChild(e);
+    return e;
+  };
+  let seed = 11;
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+
+  // a river between two points: a smooth curve with a hand-drawn meander that settles at both ends
+  const river = (pts, amp = 9) => {
+    const out = [];
+    for (let i = 0; i < pts.length - 1; i++) {
+      const [a, b] = [pts[i], pts[i + 1]];
+      const dx = b.x - a.x, dy = b.y - a.y, len = Math.hypot(dx, dy) || 1;
+      const nx = -dy / len, ny = dx / len;
+      const turns = Math.max(.6, len / 110) * (0.8 + rnd() * 0.4), phase = rnd() * Math.PI * 2, k = amp * (0.6 + rnd() * 0.6);
+      const steps = Math.max(12, Math.round(len / 7));
+      for (let s = i ? 1 : 0; s <= steps; s++) {
+        const t = s / steps;
+        const off = k * Math.sin(t * Math.PI * turns * 2 + phase) * Math.sin(t * Math.PI) + (rnd() - .5) * 1.2 * Math.sin(t * Math.PI);
+        out.push([a.x + dx * t + nx * off, a.y + dy * t + ny * off]);
+      }
+    }
+    return out.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1)).join('');
+  };
+
+  // --- sea and coast
+  const base = el('g');
+  let coast = 'M0 0 L1000 0 L1000 96';
+  for (let x = 1000; x >= 0; x -= 20) coast += ` L${x} ${(92 + Math.sin(x / 37) * 6 + (rnd() - .5) * 6).toFixed(1)}`;
+  el('path', {d:coast + ' Z', fill:'var(--sea)'}, base);
+  el('path', {d:coast.replace('M0 0 L1000 0 L1000 96', 'M1000 96'), fill:'none', stroke:'var(--ink)', 'stroke-width':2, 'stroke-linejoin':'round'}, base);
+
+  // --- the lake of Time
+  let lake = '';
+  for (let a = 0; a <= 360; a += 10) {
+    const r = 1 + Math.sin(a / 57 * 3) * .06 + Math.sin(a / 57 * 5 + 1) * .05 + (rnd() - .5) * .04;
+    lake += (a ? 'L' : 'M') + (500 + 150 * r * Math.cos(a * Math.PI / 180)).toFixed(1) + ' ' + (1408 + 70 * r * Math.sin(a * Math.PI / 180)).toFixed(1);
+  }
+  // titles at the foot of each river
+  [
+    {x:250, t:'PROCESS', s:'carries experience'},
+    {x:500, t:'HERITAGE', s:'carries the past'},
+    {x:750, t:'CONTEMPORARY', s:'carries the present'},
+  ].forEach(b => {
+    const a = el('text', {x:b.x, y:1508, 'text-anchor':'middle', class:'title-t'}, base); a.textContent = b.t;
+    const c = el('text', {x:b.x, y:1530, 'text-anchor':'middle', class:'title-s'}, base); c.textContent = b.s;
+  });
+  const cap = el('text', {x:500, y:1585, 'text-anchor':'middle', class:'caption'}, base);
+  cap.textContent = 'River of Practice · Practice Atlas';
+
+  // --- rivers, one path per link so each can light up on its own
+  const riverLayer = el('g');
+  const edgeEls = [];
+  const APEX = {x:505, y:262};
+  links.forEach(l => {
+    const B = N[l.to];
+    const g = el('g', {class:'edge-g'}, riverLayer);
+    g.dataset.from = l.from; g.dataset.to = l.to;
+    if (l.to === 'narratives') {
+      // the main river after the confluence, with a great bend, then the delta fanning into the sea
+      const A = N.identity;
+      el('path', {d:river([A, {x:610, y:520}, {x:420, y:395}, APEX], 7), class:'river', 'stroke-width':5.5}, g);
+      [-120, -60, -10, 45, 110].forEach((dx, i) => {
+        const end = {x:APEX.x + dx, y:96 + (i % 2) * 4};
+        el('path', {d:river([APEX, {x:APEX.x + dx * .45, y:180}, end], 5), class:'river', 'stroke-width':2}, g);
+      });
+      return;
+    }
+    let pts;
+    if (l.from === 'time') pts = [SOURCE[B.b], {x:(SOURCE[B.b].x + B.x) / 2, y:(SOURCE[B.b].y + B.y) / 2 + 10}, B];
+    else if (l.from === 'contrast') pts = [N.contrast, {x:815, y:615}, {x:650, y:585}, N.identity];
+    else pts = [N[l.from], B];
+    const side = B.side;
+    const w = side ? 1.6 : l.to === 'identity' ? 4 : 2 + (N[l.from]?.d || 0) * .3;
+    el('path', {d:river(pts, side ? 6 : 10), class:'river', 'stroke-width':w}, g);
+    edgeEls.push(g);
+  });
+  edgeEls.push(...[...riverLayer.querySelectorAll('.edge-g')].filter(g => g.dataset.to === 'narratives'));
+
+  // --- places
+  const nodeLayer = el('g');
+  const nodeEls = {};
+  const mkNode = n => {
+    const g = el('g', {class:`node ${n.list}`, tabindex:'0', role:'button', 'aria-label':`${n.t.join(' ')}, ${listName[n.list]}`}, nodeLayer);
+    g.dataset.id = n.id; nodeEls[n.id] = g; return g;
+  };
+  const LH = 25;
+  Object.values(N).forEach(n => {
+    const g = mkNode(n);
+    if (n.id === 'time') {
+      el('path', {d:lake + 'Z', fill:'var(--lake)', stroke:'var(--ink)', 'stroke-width':2.2}, g);
+      const t = el('text', {x:500, y:1424, 'text-anchor':'middle', class:'common', 'font-size':52}, g); t.textContent = 'Time';
+      return;
+    }
+    if (n.id === 'identity') {
+      el('circle', {cx:n.x, cy:n.y, r:30, class:'hit'}, g);
+      el('circle', {cx:n.x, cy:n.y, r:17, fill:'var(--land)', stroke:'var(--mark)', 'stroke-width':3}, g);
+      el('circle', {cx:n.x, cy:n.y, r:8, fill:'var(--mark)'}, g);
+      const t = el('text', {x:n.x - 30, y:n.y - 22, 'text-anchor':'end', class:'both', 'font-size':50}, g); t.textContent = 'Identity';
+      return;
+    }
+    if (n.id === 'narratives') {
+      el('rect', {x:370, y:100, width:270, height:150, class:'hit'}, g);
+      const t = el('text', {x:640, y:190, class:'mine', 'font-size':30}, g); t.textContent = 'Visual narratives';
+      const s = el('text', {x:640, y:216, class:'common', 'font-size':19, opacity:.75}, g); s.textContent = 'the delta, opening to the world';
+      s.classList.remove('common'); s.setAttribute('font-style', 'italic'); s.setAttribute('font-weight', '500');
+      return;
+    }
+    el('circle', {cx:n.x, cy:n.y, r:n.side ? 5 : 6.5, class:'dot'}, g);
+    el('circle', {cx:n.x, cy:n.y, r:18, class:'hit'}, g);
+    const k = n.t.length, gap = 13;
+    let x = n.x, y0, anchor;
+    if (n.la === 'r') { x += gap; anchor = 'start'; y0 = n.y + 8 - (k - 1) * LH / 2; }
+    else if (n.la === 'l') { x -= gap; anchor = 'end'; y0 = n.y + 8 - (k - 1) * LH / 2; }
+    else if (n.la === 't') { anchor = 'middle'; y0 = n.y - gap - 4 - (k - 1) * LH; }
+    else { anchor = 'middle'; y0 = n.y + gap + 20; }
+    const t = el('text', {x, y:y0, 'text-anchor':anchor, class:n.list, 'font-size':n.side ? 22 : 25}, g);
+    n.t.forEach((s, i) => { const ts = el('tspan', {x, dy: i ? LH : 0}, t); ts.textContent = s; });
+  });
+
+  // --- tracing water back to Time
+  const ancestors = id => {
+    const seen = new Set([id]), stack = [id];
+    while (stack.length) parents(stack.pop()).forEach(p => { if (!seen.has(p)) { seen.add(p); stack.push(p); } });
+    return seen;
+  };
+  const trailTo = id => {
+    const path = [id]; let c = id;
+    while (c !== 'time') { const p = parents(c); if (!p.length) break; c = p[0]; path.unshift(c); }
+    return path;
+  };
+  let storyAt = -1;
+  const allEdges = [...riverLayer.querySelectorAll('.edge-g')];
+  const focusOn = id => {
+    if (storyAt >= 0) return;
+    const set = ancestors(id);
+    svg.classList.add('focus');
+    Object.entries(nodeEls).forEach(([k, g]) => g.classList.toggle('on', set.has(k)));
+    allEdges.forEach(g => g.classList.toggle('on', set.has(g.dataset.from) && set.has(g.dataset.to)));
+  };
+  const clearFocus = () => svg.classList.remove('focus');
+
+  const name = id => N[id].t.join(' ');
+  const fmt = id => `<span class="${N[id].list}">${name(id)}</span>`;
+  const riverName = {p:'Process river', h:'Heritage river', c:'Contemporary river'};
+  const detail = document.getElementById('detail');
+
+  const showConcept = id => {
+    const n = N[id];
+    Object.entries(nodeEls).forEach(([k, g]) => g.classList.toggle('sel', k === id));
+    const where = id === 'time' ? 'The source lake · step 0'
+      : id === 'identity' ? 'The confluence · all three rivers meet here'
+      : id === 'narratives' ? 'The delta · opens into the sea'
+      : `${riverName[n.b]}${n.side ? ' · side channel' : ''} · ${n.d} step${n.d > 1 ? 's' : ''} from Time`;
+    const incoming = S.filter(s => s.to === id);
+    const trail = id === 'identity' || id === 'time' ? '' : trailTo(id).map(fmt).join(' → ');
+    detail.innerHTML = `
+      <span class="eyebrow">${listName[n.list]}</span>
+      <h3 class="${n.list}">${name(id)}</h3>
+      <span class="where">${where}</span>
+      ${incoming.map(s => `<p class="say">${s.say}</p>`).join('')}
+      ${trail ? `<div class="trail">${trail}</div>` : ''}`;
+  };
+
+  Object.entries(nodeEls).forEach(([id, g]) => {
+    g.addEventListener('mouseenter', () => focusOn(id));
+    g.addEventListener('mouseleave', clearFocus);
+    g.addEventListener('focus', () => focusOn(id));
+    g.addEventListener('blur', clearFocus);
+    const pick = () => { if (storyAt >= 0) endStory(); showConcept(id); };
+    g.addEventListener('click', pick);
+    g.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } });
+  });
+
+  // --- story mode: the water flows one link at a time
+  const controls = document.getElementById('story-controls');
+  const renderStory = () => {
+    const step = S[storyAt];
+    const seenNodes = new Set(), seenEdges = new Set();
+    S.slice(0, storyAt + 1).forEach(s => { seenNodes.add(s.to); if (s.from) { seenNodes.add(s.from); seenEdges.add(s.from + '>' + s.to); } });
+    Object.entries(nodeEls).forEach(([k, g]) => { g.classList.toggle('seen', seenNodes.has(k)); g.classList.toggle('now', k === step.to); g.classList.remove('sel'); });
+    allEdges.forEach(g => g.classList.toggle('seen', seenEdges.has(g.dataset.from + '>' + g.dataset.to)));
+    detail.innerHTML = `
+      <span class="counter">Step ${storyAt + 1} of ${S.length}</span>
+      <h3>${step.from ? fmt(step.from) + ' <span style="font-weight:500;font-style:normal">→</span> ' : ''}${fmt(step.to)}</h3>
+      <p class="say">${step.say}</p>`;
+    controls.innerHTML = `
+      <button type="button" class="btn" id="st-prev" ${storyAt === 0 ? 'disabled' : ''}>Back</button>
+      <button type="button" class="btn primary" id="st-next">${storyAt === S.length - 1 ? 'Finish' : 'Next'}</button>
+      <button type="button" class="btn" id="st-exit">Show whole map</button>`;
+    document.getElementById('st-prev').onclick = () => { storyAt--; renderStory(); };
+    document.getElementById('st-next').onclick = () => { if (storyAt === S.length - 1) endStory(); else { storyAt++; renderStory(); } };
+    document.getElementById('st-exit').onclick = endStory;
+  };
+  const startStory = () => { clearFocus(); storyAt = 0; svg.classList.add('story'); renderStory(); document.getElementById('st-next').focus(); };
+  const endStory = () => {
+    storyAt = -1; svg.classList.remove('story');
+    controls.innerHTML = '<button type="button" class="btn primary" id="story-start">Follow the river</button>';
+    document.getElementById('story-start').onclick = startStory;
+    showConcept('identity');
+  };
+  document.getElementById('story-start').onclick = startStory;
+  document.addEventListener('keydown', e => {
+    if (storyAt < 0) return;
+    if (e.key === 'ArrowRight' && storyAt < S.length - 1) { storyAt++; renderStory(); }
+    else if (e.key === 'ArrowLeft' && storyAt > 0) { storyAt--; renderStory(); }
+    else if (e.key === 'Escape') endStory();
+  });
+
+  document.getElementById('rivers').innerHTML = ['h', 'p', 'c'].map(b => {
+    const ns = Object.values(N).filter(n => n.b === b);
+    const m = ns.filter(n => n.list === 'mine').length;
+    const head = {h:'<span class="mine">Heritage</span>', p:'<span class="common">Process</span>', c:'<span class="mine">Contemporary perspective</span>'}[b];
+    return `<div><span>${head}</span><span class="c">${m} mine · ${ns.length - m} common</span></div>`;
+  }).join('') + '<p class="trail" style="margin:4px 0 0">Heritage is almost all my list; Process and Contemporary are mostly the common list. All three meet at <span class="both">Identity</span>.</p>';
+
+  showConcept('identity');
+})();
+</script>
+
+</body>
+</html>
